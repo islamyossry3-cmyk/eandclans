@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* e& Brand Colors (Official Brand Guidelines v3.0) */
+    --color-red: #E00800;
+    --color-ocean-blue: #18114B;
+    --color-bright-green: #47CB6C;
+    --color-burgundy: #7C0124;
+    --color-dark-green: #16363A;
+    --color-mauve: #B31C46;
+    --color-sand-red: #D18D96;
+    --color-beige: #E2E2D7;
+    --color-white: #FFFFFF;
+    --color-grey: #717F6F;
+    --color-medium-grey: #9C9C99;
+    --color-light-grey: #DADAD7;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: var(--color-ocean-blue);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', 'Cairo', 'Tajawal', sans-serif;
+    letter-spacing: 0.01em;
+    color: var(--color-ocean-blue);
+  }
+
+  /* RTL Support */
+  [dir="rtl"] {
+    direction: rtl;
+    text-align: right;
+  }
+
+  [dir="rtl"] body {
+    font-family: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  /* Arabic font optimization */
+  [lang="ar"], [lang="ar-EG"] {
+    font-family: 'Cairo', 'Tajawal', sans-serif;
+    letter-spacing: 0;
+  }
+
+  [lang="ar"] h1, [lang="ar"] h2, [lang="ar"] h3,
+  [lang="ar"] h4, [lang="ar"] h5, [lang="ar"] h6 {
+    font-family: 'Cairo', 'Tajawal', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
+  /* Logical properties for RTL support */
+  [dir="rtl"] .text-left {
+    text-align: right;
+  }
+
+  [dir="rtl"] .text-right {
+    text-align: left;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
