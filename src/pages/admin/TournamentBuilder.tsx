@@ -9,7 +9,7 @@ import { Trophy, Calendar, Clock, Users, ArrowLeft, Save } from 'lucide-react';
 
 export function TournamentBuilderPage() {
   const navigate = useNavigate();
-  const { admin } = useAuthStore();
+  const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -30,7 +30,7 @@ export function TournamentBuilderPage() {
     e.preventDefault();
     setError('');
 
-    if (!admin) {
+    if (!user) {
       setError('You must be logged in to create a tournament');
       return;
     }
@@ -56,7 +56,7 @@ export function TournamentBuilderPage() {
     setIsLoading(true);
 
     const tournament = await tournamentService.createTournament({
-      adminId: admin.id,
+      adminId: user.id,
       name: formData.name.trim(),
       description: formData.description.trim() || undefined,
       startDate: startDateTime.toISOString(),
