@@ -95,10 +95,14 @@ export const authService = {
       if (adminError) throw adminError;
       if (!adminData) throw new Error('Admin profile not found');
 
-      await supabase
+      // Update last login time asynchronously (fire and forget)
+      supabase
         .from('admins')
         .update({ last_login_at: new Date().toISOString() })
-        .eq('id', adminData.id);
+        .eq('id', adminData.id)
+        .then(({ error }) => {
+          if (error) console.error('Failed to update login time:', error);
+        });
 
       return {
         success: true,

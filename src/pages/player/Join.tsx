@@ -105,7 +105,11 @@ export function PlayerJoinPage() {
       if (value.trim()) params.append(key, value.trim());
     });
 
-    navigate(`/play/${foundSession.sessionPin}?${params.toString()}`);
+    if (foundSession.type === 'individual') {
+      navigate(`/individual/${foundSession.sessionPin}?${params.toString()}`);
+    } else {
+      navigate(`/play/${foundSession.sessionPin}?${params.toString()}`);
+    }
   };
 
   return (

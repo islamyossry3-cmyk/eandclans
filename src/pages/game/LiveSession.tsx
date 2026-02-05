@@ -28,6 +28,7 @@ export function LiveSessionPage() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const [restartCountdown, setRestartCountdown] = useState<number | null>(null);
   const { toasts, removeToast, success, info } = useToast();
   const prevPlayerCount = useRef(0);
   const prevTerritoryCount = useRef(0);
@@ -126,6 +127,27 @@ export function LiveSessionPage() {
       return () => clearInterval(interval);
     }
   }, [liveGame?.status, liveGame?.endsAt]);
+
+  useEffect(() => {
+    if (liveGame?.status === 'ended' && session?.autoRestart && restartCountdown === null) {
+      setRestartCountdown(session.restartDelay || 60);
+      
+      const interval = setInterval(() => {
+        setRestartCountdown((prev) => {
+          if (prev === null || prev <= 1) {
+            clearInterval(interval);
+            handleRestartSession();
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(interval);
+    } else if (liveGame?.status !== 'ended') {
+      setRestartCountdown(null);
+    }
+  }, [liveGame?.status, session?.autoRestart, session?.restartDelay]);
 
   const loadSession = async () => {
     setIsLoading(true);

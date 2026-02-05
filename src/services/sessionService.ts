@@ -42,6 +42,8 @@ export const sessionService = {
         questions: JSON.stringify(data.questions || []),
         post_game_file_url: data.postGameFileUrl,
         background_music_url: data.backgroundMusicUrl,
+        auto_restart: data.autoRestart,
+        restart_delay: data.restartDelay,
       };
 
       const { data: createdSession, error } = await supabase
@@ -101,6 +103,14 @@ export const sessionService = {
 
       if (data.backgroundMusicUrl !== undefined) {
         updateData.background_music_url = data.backgroundMusicUrl;
+      if (data.autoRestart !== undefined) {
+        updateData.auto_restart = data.autoRestart;
+      }
+
+      if (data.restartDelay !== undefined) {
+        updateData.restart_delay = data.restartDelay;
+      }
+
       }
 
       const { data: updatedSession, error } = await supabase
@@ -267,6 +277,8 @@ export const sessionService = {
         : dbSession.questions,
       postGameFileUrl: dbSession.post_game_file_url,
       backgroundMusicUrl: dbSession.background_music_url,
+      autoRestart: dbSession.auto_restart,
+      restartDelay: dbSession.restart_delay,
       createdAt: dbSession.created_at,
       updatedAt: dbSession.updated_at,
     };

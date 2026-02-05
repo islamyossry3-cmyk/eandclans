@@ -67,6 +67,8 @@ export interface Session {
   registrationFields?: RegistrationField[];
   postGameFileUrl?: string;
   backgroundMusicUrl?: string;
+  autoRestart?: boolean;
+  restartDelay?: number;
   createdAt: string;
   updatedAt: string;
 }

@@ -489,6 +489,38 @@ export function SessionBuilderPage() {
               <span className="text-sm font-medium text-gray-700">Allow Skip</span>
             </label>
 
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Auto-Restart Settings</h3>
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.autoRestart || false}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      autoRestart: e.target.checked,
+                      restartDelay: e.target.checked ? (formData.restartDelay || 60) : undefined
+                    })}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Automatically restart session after game ends</span>
+                </label>
+
+                {formData.autoRestart && (
+                  <Input
+                    label="Restart Delay (seconds)"
+                    type="number"
+                    min={10}
+                    value={formData.restartDelay || 60}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      restartDelay: Math.max(10, parseInt(e.target.value))
+                    })}
+                  />
+                )}
+              </div>
+            </div>
+
             {/* Background Music Upload */}
             <div className="border-t pt-4 mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">

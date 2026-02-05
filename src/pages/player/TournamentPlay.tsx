@@ -7,11 +7,13 @@ import { Loading } from '../../components/shared/Loading';
 import { Button } from '../../components/shared/Button';
 import { ToastContainer } from '../../components/shared/Toast';
 import { useToast } from '../../hooks/useToast';
+import { useGameEffects } from '../../hooks/useGameEffects';
+import { ScorePopup, ScoreStreak, Celebration, AchievementToast } from '../../components/game';
 import { PlayerHexGrid } from '../../components/game/PlayerHexGrid';
 import { eandColors } from '../../constants/eandColors';
 import { 
   Clock, Trophy, CheckCircle, XCircle, Users, Award,
-  Zap, Target, Play, Pause, Calendar
+  Zap, Target, Play, Pause, Calendar, Volume2, VolumeX
 } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
