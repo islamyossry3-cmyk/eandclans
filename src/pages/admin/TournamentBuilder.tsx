@@ -56,7 +56,7 @@ export function TournamentBuilderPage() {
     setIsLoading(true);
 
     const tournament = await tournamentService.createTournament({
-      adminId: user.id,
+      adminId: user.adminId,
       name: formData.name.trim(),
       description: formData.description.trim() || undefined,
       startDate: startDateTime.toISOString(),
