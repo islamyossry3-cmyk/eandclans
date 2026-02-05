@@ -38,6 +38,8 @@ export function TournamentPlayPage() {
   } = useTournamentStore();
 
   const { toasts, removeToast, success, error: showError } = useToast();
+  const gameEffects = useGameEffects();
+  const [isMuted, setIsMuted] = useState(false);
 
   const [tournament, setTournament] = useState<Tournament | null>(currentTournament);
   const [session, setSession] = useState<TournamentSession | null>(currentSession);
@@ -293,6 +295,13 @@ export function TournamentPlayPage() {
     const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
     setAnswerResult(isCorrect ? 'correct' : 'incorrect');
 
+    // Trigger gamification effects
+    if (isCorrect) {
+      gameEffects.onCorrectAnswer(10, player.totalCorrectAnswers === 0);
+    } else {
+      gameEffects.onIncorrectAnswer();
+    }
+
     // Update game player stats
     await gameService.updatePlayerStats(gamePlayer.id, {
       questionsAnswered: 1,
@@ -304,6 +313,7 @@ export function TournamentPlayPage() {
       const result = await tournamentService.addCorrectAnswer(player.id);
       if (result.creditEarned) {
         addCredit();
+        gameEffects.unlockAchievement('streak_3');
         success('🎉 You earned a credit!');
       }
 
@@ -334,6 +344,8 @@ export function TournamentPlayPage() {
     const claimSuccess = await gameService.claimTerritory(liveGame.id, hexId, team, gamePlayer.id);
 
     if (claimSuccess) {
+      const isFirstTerritory = player?.totalTerritoriesClaimed === 0;
+      gameEffects.onTerritoryClaimed(isFirstTerritory);
       success('Territory claimed!');
       
       // Update tournament player stats
@@ -807,6 +819,37 @@ export function TournamentPlayPage() {
           </div>
         </div>
         <ToastContainer toasts={toasts} onClose={removeToast} />
+        
+        {/* Gamification Effects */}
+        {gameEffects.scorePopup.isVisible && (
+          <ScorePopup
+            points={gameEffects.scorePopup.points}
+            isCorrect={gameEffects.scorePopup.isCorrect}
+            onComplete={gameEffects.hideScorePopup}
+          />
+        )}
+        <ScoreStreak streak={gameEffects.streak} />
+        <Celebration
+          type={gameEffects.confettiType}
+          isActive={gameEffects.showConfetti}
+          onComplete={gameEffects.hideConfetti}
+        />
+        <AchievementToast
+          achievements={gameEffects.pendingAchievements}
+          onDismiss={gameEffects.dismissAchievement}
+        />
+        
+        {/* Sound Toggle */}
+        <button
+          onClick={() => {
+            setIsMuted(!isMuted);
+            gameEffects.setMuted(!isMuted);
+          }}
+          className="fixed bottom-4 right-4 z-40 p-3 rounded-full bg-white/90 shadow-lg hover:scale-110 transition-transform"
+          title={isMuted ? 'Unmute' : 'Mute'}
+        >
+          {isMuted ? <VolumeX className="w-5 h-5 text-gray-600" /> : <Volume2 className="w-5 h-5 text-gray-600" />}
+        </button>
       </div>
     );
   }
