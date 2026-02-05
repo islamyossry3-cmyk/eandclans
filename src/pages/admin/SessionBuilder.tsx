@@ -24,11 +24,13 @@ export function SessionBuilderPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const team1IconInputRef = useRef<HTMLInputElement>(null);
   const team2IconInputRef = useRef<HTMLInputElement>(null);
+  const postGameFileInputRef = useRef<HTMLInputElement>(null);
 
   const [currentStep, setCurrentStep] = useState<Step>('basic');
   const [assetPickerOpen, setAssetPickerOpen] = useState<'team1' | 'team2' | null>(null);
   const [availableAssets, setAvailableAssets] = useState<Array<{ name: string; id: string }>>([]);
   const [loadingAssets, setLoadingAssets] = useState(false);
+  const [uploadingPostGameFile, setUploadingPostGameFile] = useState(false);
   const [formData, setFormData] = useState<Partial<Session>>({
     name: '',
     description: '',
@@ -134,6 +136,55 @@ export function SessionBuilderPage() {
     const questions = [...(formData.questions || [])];
     questions.splice(index, 1);
     setFormData({ ...formData, questions });
+  };
+
+  const handlePostGameFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (file.type !== 'application/pdf') {
+      error('Please upload a PDF file');
+      return;
+    }
+
+    // Validate file size (50MB max)
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      error('File size must be less than 50MB');
+      return;
+    }
+
+    setUploadingPostGameFile(true);
+
+    try {
+      const { supabase } = await import('../../lib/supabase');
+      const fileName = `${crypto.randomUUID()}-${file.name}`;
+      
+      const { data, error: uploadError } = await supabase.storage
+        .from('session-files')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('session-files')
+        .getPublicUrl(data.path);
+
+      setFormData({ ...formData, postGameFileUrl: publicUrl });
+      success('PDF uploaded successfully');
+    } catch (err) {
+      console.error('Upload error:', err);
+      error('Failed to upload PDF');
+    } finally {
+      setUploadingPostGameFile(false);
+      if (postGameFileInputRef.current) {
+        postGameFileInputRef.current.value = '';
+      }
+    }
   };
 
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -385,6 +436,46 @@ export function SessionBuilderPage() {
               />
               <span className="text-sm font-medium text-gray-700">Allow Skip</span>
             </label>
+
+            {/* Post-Game PDF Upload */}
+            <div className="border-t pt-4 mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Post-Game Document (PDF)
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Upload a PDF file (max 50MB) that will be shown after the game ends and winners are celebrated
+              </p>
+              <div className="flex items-center gap-4">
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={handlePostGameFileUpload}
+                  ref={postGameFileInputRef}
+                  className="hidden"
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => postGameFileInputRef.current?.click()}
+                  className="flex items-center gap-2"
+                  type="button"
+                >
+                  <Upload className="w-4 h-4" />
+                  {uploadingPostGameFile ? 'Uploading...' : 'Upload PDF'}
+                </Button>
+                {formData.postGameFileUrl && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-green-600">✓ PDF uploaded</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, postGameFileUrl: undefined })}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         );
 

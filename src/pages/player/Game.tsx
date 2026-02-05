@@ -38,6 +38,8 @@ export function PlayerGamePage() {
   const prevGameStatus = useRef<string>('lobby');
   const [isMuted, setIsMuted] = useState(false);
   const [questionsAnsweredCount, setQuestionsAnsweredCount] = useState(0);
+  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
+  const hasStartedRedirectRef = useRef(false);
 
   const [session, setSession] = useState<Session | null>(null);
   const [liveGame, setLiveGame] = useState<LiveGame | null>(null);
@@ -827,6 +829,23 @@ export function PlayerGamePage() {
       setTimeout(() => setShowConfetti(false), 5000);
     }
 
+    // Start countdown for PDF redirect if available
+    if (session.postGameFileUrl && !hasStartedRedirectRef.current) {
+      hasStartedRedirectRef.current = true;
+      setRedirectCountdown(3);
+      
+      const countdownInterval = setInterval(() => {
+        setRedirectCountdown(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(countdownInterval);
+            window.open(session.postGameFileUrl, '_blank');
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
     const teamColor = team === 'team1' ? session.design.team1.color : session.design.team2.color;
 
     return (
@@ -853,9 +872,21 @@ export function PlayerGamePage() {
 
           <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full text-center relative z-10">
             <h1 className="text-5xl font-bold text-gray-900 mb-6 animate-pulse">Game Over!</h1>
-            <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-3xl p-4">
-              <p className="text-blue-800 font-medium">Waiting for host to restart...</p>
-            </div>
+            {redirectCountdown !== null ? (
+              <div className="mb-6 bg-green-50 border-2 border-green-200 rounded-3xl p-4">
+                <p className="text-green-800 font-medium">
+                  Opening document in {redirectCountdown}...
+                </p>
+              </div>
+            ) : session.postGameFileUrl ? (
+              <div className="mb-6 bg-green-50 border-2 border-green-200 rounded-3xl p-4">
+                <p className="text-green-800 font-medium">Document opened in new tab</p>
+              </div>
+            ) : (
+              <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-3xl p-4">
+                <p className="text-blue-800 font-medium">Waiting for host to restart...</p>
+              </div>
+            )}
 
             {tied ? (
               <>

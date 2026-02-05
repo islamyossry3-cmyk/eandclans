@@ -53,6 +53,8 @@ export function IndividualGamePage() {
 
   const [countdown, setCountdown] = useState(3);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [pdfRedirectCountdown, setPdfRedirectCountdown] = useState<number | null>(null);
+  const hasStartedPdfRedirectRef = useRef(false);
 
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [showPhotoCapture, setShowPhotoCapture] = useState(false);
@@ -677,6 +679,23 @@ export function IndividualGamePage() {
     const skippedCount = answers.filter(a => a.skipped).length;
     const timeoutCount = answers.filter(a => a.selectedAnswer === null && !a.skipped).length;
 
+    // Start countdown for PDF redirect if available
+    if (session?.postGameFileUrl && !hasStartedPdfRedirectRef.current) {
+      hasStartedPdfRedirectRef.current = true;
+      setPdfRedirectCountdown(3);
+      
+      const countdownInterval = setInterval(() => {
+        setPdfRedirectCountdown(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(countdownInterval);
+            window.open(session.postGameFileUrl, '_blank');
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
     return (
       <div className="relative min-h-screen overflow-hidden p-4">
         <Confetti active={showConfetti} duration={5000} />
@@ -709,6 +728,18 @@ export function IndividualGamePage() {
               <h1 className="text-5xl font-bold text-amber-300 mb-4 drop-shadow-lg">
                 Quest Complete!
               </h1>
+              {pdfRedirectCountdown !== null && (
+                <div className="bg-green-900/50 border-2 border-green-500 rounded-2xl p-3 mb-4">
+                  <p className="text-green-300 font-medium">
+                    Opening document in {pdfRedirectCountdown}...
+                  </p>
+                </div>
+              )}
+              {pdfRedirectCountdown === null && session?.postGameFileUrl && (
+                <div className="bg-green-900/50 border-2 border-green-500 rounded-2xl p-3 mb-4">
+                  <p className="text-green-300 font-medium">Document opened in new tab</p>
+                </div>
+              )}
               <div className="text-6xl font-bold text-amber-400 mb-2">{score} Points</div>
               <div className="text-amber-200">
                 {correctCount} correct · {wrongCount} wrong

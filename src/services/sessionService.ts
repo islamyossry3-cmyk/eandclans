@@ -40,6 +40,7 @@ export const sessionService = {
         design_logo_url: data.design?.logoUrl,
         design_branding_text: data.design?.brandingText,
         questions: JSON.stringify(data.questions || []),
+        post_game_file_url: data.postGameFileUrl,
       };
 
       const { data: createdSession, error } = await supabase
@@ -91,6 +92,10 @@ export const sessionService = {
 
       if (data.questions) {
         updateData.questions = JSON.stringify(data.questions);
+      }
+
+      if (data.postGameFileUrl !== undefined) {
+        updateData.post_game_file_url = data.postGameFileUrl;
       }
 
       const { data: updatedSession, error } = await supabase
@@ -255,6 +260,7 @@ export const sessionService = {
       questions: typeof dbSession.questions === 'string'
         ? JSON.parse(dbSession.questions)
         : dbSession.questions,
+      postGameFileUrl: dbSession.post_game_file_url,
       createdAt: dbSession.created_at,
       updatedAt: dbSession.updated_at,
     };
