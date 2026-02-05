@@ -304,8 +304,8 @@ export const gameService = {
         .insert({
           live_game_id: gameId,
           hex_id: hexId,
-          owner,
-          claimed_by: claimedBy,
+          team: owner,
+          claimed_by_player_id: claimedBy,
         });
 
       if (error) throw error;
@@ -485,8 +485,8 @@ export const gameService = {
       id: data.id,
       liveGameId: data.live_game_id,
       hexId: data.hex_id,
-      owner: data.owner,
-      claimedBy: data.claimed_by,
+      owner: data.team,
+      claimedBy: data.claimed_by_player_id,
       claimedAt: data.claimed_at,
     };
   },
