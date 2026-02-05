@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
@@ -14,8 +14,14 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
-  const { signIn, isLoading, error } = useAuthStore();
+  const { signIn, isLoading, error, user } = useAuthStore();
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -31,9 +37,9 @@ export function LoginPage() {
 
     try {
       await signIn(email, password);
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     } catch {
-      setErrors({ form: 'Login failed' });
+      // error is already set in authStore
     }
   };
 

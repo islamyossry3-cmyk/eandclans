@@ -34,6 +34,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user: response.user || null, isLoading: false });
     } else {
       set({ error: response.error || 'Login failed', isLoading: false });
+      throw new Error(response.error || 'Login failed');
     }
   },
 
