@@ -201,10 +201,16 @@ export function PlayerGamePage() {
   };
 
   const handleTeamSelect = async (selectedTeam: 'team1' | 'team2') => {
-    if (!liveGame || !session || isLoading) return;
+    if (!liveGame || !session || isLoading) {
+      console.log('[Game] handleTeamSelect blocked:', { liveGame: !!liveGame, session: !!session, isLoading });
+      return;
+    }
+
+    console.log('[Game] handleTeamSelect called for team:', selectedTeam);
 
     const existingPlayer = allPlayers.find((p) => p.playerName === playerName);
     if (existingPlayer) {
+      console.log('[Game] Player already exists, reconnecting:', existingPlayer.id);
       setPlayer(existingPlayer.id, playerName!, liveGame.id, existingPlayer.team!);
       setPlayerData(existingPlayer);
       return;
@@ -219,6 +225,7 @@ export function PlayerGamePage() {
     setIsLoading(true);
     setSelectedTeam(selectedTeam);
 
+    console.log('[Game] Adding player to game:', liveGame.id);
     const player = await gameService.addPlayer(liveGame.id, playerName!, selectedTeam, {
       email: playerEmail || undefined,
       organization: playerOrganization || undefined,
@@ -226,12 +233,14 @@ export function PlayerGamePage() {
     });
 
     if (player) {
+      console.log('[Game] Player added successfully:', player.id);
       setPlayer(player.id, playerName!, liveGame.id, selectedTeam);
       setPlayerData(player);
       const teamName = selectedTeam === 'team1' ? session.design.team1.name : session.design.team2.name;
       success(`Joined ${teamName}!`);
     } else {
-      showError('Failed to join team');
+      console.error('[Game] Failed to add player - gameService.addPlayer returned null');
+      showError('Failed to join team. Please try again.');
       setSelectedTeam(null);
     }
 
@@ -367,7 +376,7 @@ export function PlayerGamePage() {
   }
 
   if (liveGame.status === 'lobby' && !team) {
-    const theme = getTheme(session.design.backgroundTheme || 'highland');
+    const theme = getTheme(session.design.backgroundTheme || 'innovation');
     const islandImage = theme.backgroundImage;
     const team1Count = allPlayers.filter((p) => p.team === 'team1').length;
     const team2Count = allPlayers.filter((p) => p.team === 'team2').length;
@@ -502,7 +511,7 @@ export function PlayerGamePage() {
   }
 
   if (liveGame.status === 'lobby' && team) {
-    const theme = getTheme(session.design.backgroundTheme || 'highland');
+    const theme = getTheme(session.design.backgroundTheme || 'innovation');
     const islandImage = theme.backgroundImage;
     const teamColor = team === 'team1' ? session.design.team1.color : session.design.team2.color;
     const teamName = team === 'team1' ? session.design.team1.name : session.design.team2.name;
@@ -593,7 +602,7 @@ export function PlayerGamePage() {
             team1Color={session.design.team1.color}
             team2Color={session.design.team2.color}
             backgroundVideoUrl={undefined}
-            islandImageUrl={getTheme(session.design.backgroundTheme || 'highland').backgroundImage}
+            islandImageUrl={getTheme(session.design.backgroundTheme || 'innovation').backgroundImage}
             availableTerritories={availableTerritories}
             onHexClick={handleClaimTerritory}
             myTeam={team!}

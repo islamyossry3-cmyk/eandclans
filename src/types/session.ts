@@ -40,8 +40,8 @@ export interface RegistrationField {
 export interface SessionDesign {
   team1: TeamDesign;
   team2: TeamDesign;
-  backgroundTheme: 'highland' | 'desert' | 'frost' | 'shadow';
-  theme?: 'highland' | 'desert' | 'frost' | 'shadow';
+  backgroundTheme: 'innovation' | 'excellence' | 'integrity' | 'customer-focus' | 'collaboration' | 'empowerment';
+  theme?: 'innovation' | 'excellence' | 'integrity' | 'customer-focus' | 'collaboration' | 'empowerment';
   backgroundVideoUrl?: string;
   islandImageUrl?: string;
   backgroundAssets?: {
