@@ -414,7 +414,8 @@ export function PlayerGamePage() {
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
                 Welcome, {playerName}!
               </h1>
-              <p className="text-gray-600">Choose your team to join the battle</p>
+              <p className="text-gray-600 mb-2">Choose your team to join the battle</p>
+              <p className="text-sm text-blue-600 font-medium animate-pulse">👆 Tap a team to join</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -422,9 +423,10 @@ export function PlayerGamePage() {
               <button
                 onClick={() => handleTeamSelect('team1')}
                 disabled={team1Full || isLoading}
-                className="relative overflow-hidden touch-manipulation disabled:opacity-50"
+                className="relative overflow-hidden touch-manipulation disabled:opacity-50 min-h-[200px] w-full"
                 style={{
                   clipPath: !team1Full ? 'polygon(0 0, 100% 0, 100% calc(100% - 40px), 50% 100%, 0 calc(100% - 40px))' : 'none',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
               >
                 <div
@@ -461,9 +463,10 @@ export function PlayerGamePage() {
               <button
                 onClick={() => handleTeamSelect('team2')}
                 disabled={team2Full || isLoading}
-                className="relative overflow-hidden touch-manipulation disabled:opacity-50"
+                className="relative overflow-hidden touch-manipulation disabled:opacity-50 min-h-[200px] w-full"
                 style={{
                   clipPath: !team2Full ? 'polygon(0 0, 100% 0, 100% calc(100% - 40px), 50% 100%, 0 calc(100% - 40px))' : 'none',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
               >
                 <div
