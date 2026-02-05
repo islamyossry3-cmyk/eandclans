@@ -41,6 +41,7 @@ export const sessionService = {
         design_branding_text: data.design?.brandingText,
         questions: JSON.stringify(data.questions || []),
         post_game_file_url: data.postGameFileUrl,
+        background_music_url: data.backgroundMusicUrl,
       };
 
       const { data: createdSession, error } = await supabase
@@ -96,6 +97,10 @@ export const sessionService = {
 
       if (data.postGameFileUrl !== undefined) {
         updateData.post_game_file_url = data.postGameFileUrl;
+      }
+
+      if (data.backgroundMusicUrl !== undefined) {
+        updateData.background_music_url = data.backgroundMusicUrl;
       }
 
       const { data: updatedSession, error } = await supabase
@@ -261,6 +266,7 @@ export const sessionService = {
         ? JSON.parse(dbSession.questions)
         : dbSession.questions,
       postGameFileUrl: dbSession.post_game_file_url,
+      backgroundMusicUrl: dbSession.background_music_url,
       createdAt: dbSession.created_at,
       updatedAt: dbSession.updated_at,
     };

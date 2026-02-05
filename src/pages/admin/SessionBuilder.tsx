@@ -31,6 +31,8 @@ export function SessionBuilderPage() {
   const [availableAssets, setAvailableAssets] = useState<Array<{ name: string; id: string }>>([]);
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [uploadingPostGameFile, setUploadingPostGameFile] = useState(false);
+  const [uploadingMusic, setUploadingMusic] = useState(false);
+  const musicFileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<Partial<Session>>({
     name: '',
     description: '',
@@ -136,6 +138,56 @@ export function SessionBuilderPage() {
     const questions = [...(formData.questions || [])];
     questions.splice(index, 1);
     setFormData({ ...formData, questions });
+  };
+
+  const handleMusicUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg'];
+    if (!allowedTypes.includes(file.type)) {
+      error('Please upload an audio file (MP3, WAV, or OGG)');
+      return;
+    }
+
+    // Validate file size (20MB max for audio)
+    const maxSize = 20 * 1024 * 1024;
+    if (file.size > maxSize) {
+      error('Audio file must be less than 20MB');
+      return;
+    }
+
+    setUploadingMusic(true);
+
+    try {
+      const { supabase } = await import('../../lib/supabase');
+      const fileName = `music/${crypto.randomUUID()}-${file.name}`;
+      
+      const { data, error: uploadError } = await supabase.storage
+        .from('session-files')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('session-files')
+        .getPublicUrl(data.path);
+
+      setFormData({ ...formData, backgroundMusicUrl: publicUrl });
+      success('Music uploaded successfully');
+    } catch (err) {
+      console.error('Upload error:', err);
+      error('Failed to upload music');
+    } finally {
+      setUploadingMusic(false);
+      if (musicFileInputRef.current) {
+        musicFileInputRef.current.value = '';
+      }
+    }
   };
 
   const handlePostGameFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -436,6 +488,46 @@ export function SessionBuilderPage() {
               />
               <span className="text-sm font-medium text-gray-700">Allow Skip</span>
             </label>
+
+            {/* Background Music Upload */}
+            <div className="border-t pt-4 mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Background Music (Optional)
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Upload an audio file (MP3, WAV, OGG - max 20MB) to play during the game. Leave empty to use default music.
+              </p>
+              <div className="flex items-center gap-4">
+                <input
+                  type="file"
+                  accept=".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg"
+                  onChange={handleMusicUpload}
+                  ref={musicFileInputRef}
+                  className="hidden"
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => musicFileInputRef.current?.click()}
+                  className="flex items-center gap-2"
+                  type="button"
+                >
+                  <Upload className="w-4 h-4" />
+                  {uploadingMusic ? 'Uploading...' : 'Upload Music'}
+                </Button>
+                {formData.backgroundMusicUrl && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-green-600">✓ Music uploaded</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, backgroundMusicUrl: undefined })}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Post-Game PDF Upload */}
             <div className="border-t pt-4 mt-4">

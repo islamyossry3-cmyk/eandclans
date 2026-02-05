@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Camera, Upload, Download, Trophy, ArrowLeft, Share2 } from 'lucide-react';
+import { Camera, Upload, Download, Trophy, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
@@ -62,6 +62,8 @@ export function IndividualGamePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
 
   const [leaderboard, setLeaderboard] = useState<PlayerResult[]>([]);
   const [gameStartTime] = useState(Date.now());
@@ -87,6 +89,40 @@ export function IndividualGamePage() {
       handleTimeout();
     }
   }, [timeLeft, screen, answerLocked]);
+
+  // Background music control
+  useEffect(() => {
+    if (!session) return;
+
+    const musicUrl = session.backgroundMusicUrl || '/assets/eandd.mp3';
+    
+    if (!audioRef.current) {
+      audioRef.current = new Audio(musicUrl);
+      audioRef.current.loop = true;
+      audioRef.current.volume = 0.3;
+    }
+
+    const audio = audioRef.current;
+
+    if ((screen === 'quiz' || screen === 'countdown') && !isMuted) {
+      audio.play().catch(() => {
+        // Autoplay was prevented
+      });
+    } else if (screen === 'results' || screen === 'leaderboard') {
+      audio.pause();
+    }
+
+    return () => {
+      audio.pause();
+    };
+  }, [screen, isMuted, session]);
+
+  // Update audio mute state
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
 
   const loadSession = async () => {
     if (!sessionPin) return;
@@ -596,6 +632,17 @@ export function IndividualGamePage() {
                 <div className="text-amber-200">
                   Question {currentQuestionIndex + 1} of {session.questions.length}
                 </div>
+                <button
+                  onClick={() => setIsMuted(!isMuted)}
+                  className="p-2 rounded-full bg-stone-700 hover:bg-stone-600 transition-colors"
+                  title={isMuted ? 'Unmute music' : 'Mute music'}
+                >
+                  {isMuted ? (
+                    <VolumeX className="w-5 h-5 text-amber-200" />
+                  ) : (
+                    <Volume2 className="w-5 h-5 text-amber-200" />
+                  )}
+                </button>
               </div>
 
               <div className={`text-3xl font-bold px-6 py-2 rounded-2xl ${

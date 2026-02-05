@@ -36,6 +36,7 @@ export function PlayerGamePage() {
   const { toasts, removeToast, success, info, error: showError } = useToast();
   const gameEffects = useGameEffects();
   const prevGameStatus = useRef<string>('lobby');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [questionsAnsweredCount, setQuestionsAnsweredCount] = useState(0);
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
@@ -171,6 +172,40 @@ export function PlayerGamePage() {
       return () => clearInterval(interval);
     }
   }, [liveGame?.status, liveGame?.endsAt]);
+
+  // Background music control
+  useEffect(() => {
+    if (!session) return;
+
+    const musicUrl = session.backgroundMusicUrl || '/assets/eandd.mp3';
+    
+    if (!audioRef.current) {
+      audioRef.current = new Audio(musicUrl);
+      audioRef.current.loop = true;
+      audioRef.current.volume = 0.3;
+    }
+
+    const audio = audioRef.current;
+
+    if (liveGame?.status === 'playing' && !isMuted) {
+      audio.play().catch(() => {
+        // Autoplay was prevented, user needs to interact first
+      });
+    } else {
+      audio.pause();
+    }
+
+    return () => {
+      audio.pause();
+    };
+  }, [liveGame?.status, isMuted, session]);
+
+  // Update audio mute state
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
 
   const loadSession = async () => {
     setIsLoading(true);

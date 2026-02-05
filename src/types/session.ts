@@ -66,6 +66,7 @@ export interface Session {
   questions: Question[];
   registrationFields?: RegistrationField[];
   postGameFileUrl?: string;
+  backgroundMusicUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
