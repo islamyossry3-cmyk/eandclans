@@ -8,9 +8,11 @@ import { Button } from '../../components/shared/Button';
 import { ToastContainer } from '../../components/shared/Toast';
 import { TeamIcon } from '../../components/shared/TeamIcon';
 import { useToast } from '../../hooks/useToast';
-import { Confetti } from '../../components/shared/Confetti';
+import { useGameEffects } from '../../hooks/useGameEffects';
+import { Confetti as SharedConfetti } from '../../components/shared/Confetti';
+import { ScorePopup, ScoreStreak, Celebration, AchievementToast } from '../../components/game';
 import { PlayerHexGrid } from '../../components/game/PlayerHexGrid';
-import { Clock, Trophy, Target, CheckCircle, XCircle, Users } from 'lucide-react';
+import { Clock, Trophy, CheckCircle, XCircle, Users, Volume2, VolumeX } from 'lucide-react';
 import type { Session } from '../../types/session';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getTheme } from '../../constants/themes';
@@ -32,7 +34,10 @@ export function PlayerGamePage() {
 
   const { playerId, team, setPlayer, setPlayerData, playerData } = usePlayerStore();
   const { toasts, removeToast, success, info, error: showError } = useToast();
+  const gameEffects = useGameEffects();
   const prevGameStatus = useRef<string>('lobby');
+  const [isMuted, setIsMuted] = useState(false);
+  const [questionsAnsweredCount, setQuestionsAnsweredCount] = useState(0);
 
   const [session, setSession] = useState<Session | null>(null);
   const [liveGame, setLiveGame] = useState<LiveGame | null>(null);
@@ -256,9 +261,18 @@ export function PlayerGamePage() {
     if (selectedAnswer === null || hasAnswered || !currentQuestion || !playerId || !liveGame) return;
 
     setHasAnswered(true);
+    const newCount = questionsAnsweredCount + 1;
+    setQuestionsAnsweredCount(newCount);
 
     const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
     setAnswerResult(isCorrect ? 'correct' : 'incorrect');
+
+    const points = session?.config.pointsPerCorrectAnswer || 10;
+    if (isCorrect) {
+      gameEffects.onCorrectAnswer(points, newCount === 1);
+    } else {
+      gameEffects.onIncorrectAnswer();
+    }
 
     await gameService.updatePlayerStats(playerId, {
       questionsAnswered: 1,
@@ -291,8 +305,7 @@ export function PlayerGamePage() {
     }
 
     setTimeout(() => {
-      if (isCorrect) {
-      } else {
+      if (!isCorrect) {
         setHasAnswered(false);
         setSelectedAnswer(null);
         setAnswerResult(null);
@@ -310,6 +323,8 @@ export function PlayerGamePage() {
     const claimSuccess = await gameService.claimTerritory(liveGame.id, hexId, team, playerId);
 
     if (claimSuccess) {
+      const isFirstTerritory = (playerData?.territoriesClaimed || 0) === 0;
+      gameEffects.onTerritoryClaimed(isFirstTerritory);
       success('Territory claimed!');
       await new Promise((resolve) => setTimeout(resolve, 1200));
       setAvailableTerritories([]);
@@ -765,6 +780,37 @@ export function PlayerGamePage() {
           </Button>
         </div>
         <ToastContainer toasts={toasts} onClose={removeToast} />
+        
+        {/* Gamification Effects */}
+        {gameEffects.scorePopup.isVisible && (
+          <ScorePopup
+            points={gameEffects.scorePopup.points}
+            isCorrect={gameEffects.scorePopup.isCorrect}
+            onComplete={gameEffects.hideScorePopup}
+          />
+        )}
+        <ScoreStreak streak={gameEffects.streak} />
+        <Celebration
+          type={gameEffects.confettiType}
+          isActive={gameEffects.showConfetti}
+          onComplete={gameEffects.hideConfetti}
+        />
+        <AchievementToast
+          achievements={gameEffects.pendingAchievements}
+          onDismiss={gameEffects.dismissAchievement}
+        />
+        
+        {/* Sound Toggle */}
+        <button
+          onClick={() => {
+            setIsMuted(!isMuted);
+            gameEffects.setMuted(!isMuted);
+          }}
+          className="fixed bottom-4 right-4 z-40 p-3 rounded-full bg-white/90 shadow-lg hover:scale-110 transition-transform"
+          title={isMuted ? 'Unmute' : 'Mute'}
+        >
+          {isMuted ? <VolumeX className="w-5 h-5 text-gray-600" /> : <Volume2 className="w-5 h-5 text-gray-600" />}
+        </button>
       </div>
       </>
     );
@@ -785,7 +831,7 @@ export function PlayerGamePage() {
 
     return (
       <>
-        <Confetti active={showConfetti} duration={5000} />
+        <SharedConfetti active={showConfetti} duration={5000} />
         <div
           className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
           style={{
