@@ -210,10 +210,15 @@ export const gameService = {
   async addPlayer(
     gameId: string,
     playerName: string,
-    team: 'team1' | 'team2' | null
+    team: 'team1' | 'team2' | null,
+    registrationData?: {
+      email?: string;
+      organization?: string;
+      customFields?: Record<string, string>;
+    }
   ): Promise<GamePlayer | null> {
     try {
-      console.log('[gameService.addPlayer] Adding player:', { gameId, playerName, team });
+      console.log('[gameService.addPlayer] Adding player:', { gameId, playerName, team, registrationData });
       
       const { data, error } = await supabase
         .from('game_players')
@@ -221,6 +226,9 @@ export const gameService = {
           live_game_id: gameId,
           player_name: playerName,
           team,
+          email: registrationData?.email || null,
+          organization: registrationData?.organization || null,
+          custom_fields: registrationData?.customFields || {},
         })
         .select()
         .single();
