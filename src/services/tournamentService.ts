@@ -31,6 +31,7 @@ export interface TournamentSession {
   team1FinalScore: number;
   team2FinalScore: number;
   winner?: 'team1' | 'team2' | 'tie';
+  liveGameId?: string;
   createdAt: string;
 }
 
@@ -176,6 +177,103 @@ export const tournamentService = {
   },
 
   // Tournament Sessions
+  async generateTournamentSessions(tournament: Tournament): Promise<TournamentSession[]> {
+    const sessions: TournamentSession[] = [];
+    const startTime = new Date(tournament.startDate).getTime();
+    const endTime = new Date(tournament.endDate).getTime();
+    const sessionDuration = tournament.sessionDurationSeconds * 1000;
+    const breakDuration = tournament.breakDurationSeconds * 1000;
+    const cycleDuration = sessionDuration + breakDuration;
+
+    let sessionNumber = 1;
+    let currentTime = startTime;
+
+    while (currentTime + sessionDuration <= endTime) {
+      const scheduledStart = new Date(currentTime).toISOString();
+      const scheduledEnd = new Date(currentTime + sessionDuration).toISOString();
+
+      const session = await this.createTournamentSession({
+        tournamentId: tournament.id,
+        sessionNumber,
+        scheduledStart,
+        scheduledEnd,
+      });
+
+      if (session) {
+        sessions.push(session);
+      }
+
+      sessionNumber++;
+      currentTime += cycleDuration;
+    }
+
+    return sessions;
+  },
+
+  async startTournament(tournamentId: string): Promise<boolean> {
+    try {
+      // Get tournament
+      const tournament = await this.getTournament(tournamentId);
+      if (!tournament) return false;
+
+      // Generate sessions if none exist
+      const existingSessions = await this.getTournamentSessions(tournamentId);
+      if (existingSessions.length === 0) {
+        await this.generateTournamentSessions(tournament);
+      }
+
+      // Update tournament status
+      await this.updateTournament(tournamentId, { status: 'active' });
+
+      // Start first session
+      const sessions = await this.getTournamentSessions(tournamentId);
+      const firstPending = sessions.find(s => s.status === 'pending');
+      if (firstPending) {
+        await this.activateSession(firstPending.id);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to start tournament:', error);
+      return false;
+    }
+  },
+
+  async activateSession(sessionId: string, liveGameId?: string): Promise<boolean> {
+    try {
+      const updates: Record<string, unknown> = {
+        status: 'active',
+        actual_start: new Date().toISOString(),
+      };
+      
+      if (liveGameId) {
+        updates.live_game_id = liveGameId;
+      }
+
+      const { error } = await supabase
+        .from('tournament_sessions')
+        .update(updates)
+        .eq('id', sessionId);
+
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
+  async linkSessionToGame(sessionId: string, liveGameId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('tournament_sessions')
+        .update({ live_game_id: liveGameId })
+        .eq('id', sessionId);
+
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
   async createTournamentSession(data: {
     tournamentId: string;
     sessionNumber: number;
@@ -488,20 +586,21 @@ export const tournamentService = {
     };
   },
 
-  mapDbToTournamentSession(data: any): TournamentSession {
+  mapDbToTournamentSession(data: Record<string, unknown>): TournamentSession {
     return {
-      id: data.id,
-      tournamentId: data.tournament_id,
-      sessionNumber: data.session_number,
-      scheduledStart: data.scheduled_start,
-      scheduledEnd: data.scheduled_end,
-      actualStart: data.actual_start,
-      actualEnd: data.actual_end,
-      status: data.status,
-      team1FinalScore: data.team1_final_score,
-      team2FinalScore: data.team2_final_score,
-      winner: data.winner,
-      createdAt: data.created_at,
+      id: data.id as string,
+      tournamentId: data.tournament_id as string,
+      sessionNumber: data.session_number as number,
+      scheduledStart: data.scheduled_start as string,
+      scheduledEnd: data.scheduled_end as string,
+      actualStart: data.actual_start as string | undefined,
+      actualEnd: data.actual_end as string | undefined,
+      status: data.status as 'pending' | 'active' | 'completed',
+      team1FinalScore: data.team1_final_score as number,
+      team2FinalScore: data.team2_final_score as number,
+      winner: data.winner as 'team1' | 'team2' | 'tie' | undefined,
+      liveGameId: data.live_game_id as string | undefined,
+      createdAt: data.created_at as string,
     };
   },
 

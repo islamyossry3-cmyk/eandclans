@@ -18,6 +18,7 @@ import { IndividualGamePage } from './pages/player/IndividualGame';
 import { TournamentBuilderPage } from './pages/admin/TournamentBuilder';
 import { TournamentDashboardPage } from './pages/admin/TournamentDashboard';
 import { TournamentJoinPage } from './pages/player/TournamentJoin';
+import { TournamentPlayPage } from './pages/player/TournamentPlay';
 
 function App() {
   const { isLoading, initializeAuth } = useAuthStore();
@@ -112,6 +113,7 @@ function App() {
           }
         />
         <Route path="/tournament/:tournamentId/join" element={<TournamentJoinPage />} />
+        <Route path="/tournament/:tournamentId/play" element={<TournamentPlayPage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>

@@ -73,7 +73,16 @@ export function TournamentDashboardPage() {
     if (!tournament) return;
     
     setIsUpdating(true);
-    await tournamentService.updateTournament(tournament.id, { status: newStatus });
+    
+    if (newStatus === 'active' && tournament.status === 'scheduled') {
+      // Starting tournament for the first time - use startTournament to generate sessions
+      await tournamentService.startTournament(tournament.id);
+    } else {
+      await tournamentService.updateTournament(tournament.id, { status: newStatus });
+    }
+    
+    // Reload tournament data
+    await loadTournament();
     setIsUpdating(false);
   };
 
