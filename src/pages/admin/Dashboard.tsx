@@ -6,7 +6,7 @@ import { Button } from '../../components/shared/Button';
 import { SessionCard } from '../../components/admin/SessionCard';
 import { HelpModal } from '../../components/shared/HelpModal';
 import { Loading } from '../../components/shared/Loading';
-import { LogOut, Plus, Search, Zap, HelpCircle, FolderOpen, Shield, Trophy, Users, Calendar, ChevronRight, Gamepad2, Menu, X } from 'lucide-react';
+import { LogOut, Plus, Search, Zap, HelpCircle, FolderOpen, Shield, Trophy, Users, Calendar, ChevronRight, Gamepad2, Menu, X, Pencil, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Session } from '../../types/session';
 import { eandColors } from '../../constants/eandColors';
@@ -98,14 +98,11 @@ export function DashboardPage() {
 
   const statItems = [
     { label: 'Total', value: stats.total, color: eandColors.red, icon: Gamepad2 },
-    { label: 'Draft', value: stats.draft, color: eandColors.grey, icon: Edit },
+    { label: 'Draft', value: stats.draft, color: eandColors.grey, icon: Pencil },
     { label: 'Ready', value: stats.ready, color: eandColors.oceanBlue, icon: Zap },
     { label: 'Live', value: stats.live, color: eandColors.brightGreen, icon: Play },
     { label: 'Done', value: stats.completed, color: eandColors.darkGreen, icon: Trophy },
   ];
-
-  const Edit = () => <span />;
-  const Play = () => <span />;
 
   return (
     <div className="min-h-screen bg-gray-50 game-dots-bg">
