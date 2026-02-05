@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { Session } from '../../types/session';
 import { Button } from '../shared/Button';
-import { Calendar, Edit, Trash2, Copy, Play, BarChart, LayoutDashboard, Hash, HelpCircle } from 'lucide-react';
+import { Calendar, Pencil, Trash2, Copy, Play, BarChart, LayoutDashboard, Hash, HelpCircle } from 'lucide-react';
 import { Modal } from '../shared/Modal';
 import { eandColors } from '../../constants/eandColors';
 
@@ -76,7 +76,7 @@ export function SessionCard({ session, onEdit, onDelete, onDuplicate, onLaunch, 
 
           <div className="flex gap-1.5 px-3 pb-3 flex-wrap">
             <Button size="sm" variant="ghost" onClick={() => onEdit(session)} style={{ padding: '4px 10px', fontSize: '11px' }}>
-              <Edit className="w-3 h-3" /> Edit
+              <Pencil className="w-3 h-3" /> Edit
             </Button>
             {(session.status === 'ready' || session.status === 'draft') && (
               <Button size="sm" variant="success" onClick={() => onLaunch(session)} style={{ padding: '4px 10px', fontSize: '11px' }}>
