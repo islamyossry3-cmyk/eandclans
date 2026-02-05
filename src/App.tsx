@@ -15,6 +15,9 @@ import { LiveSessionPage } from './pages/game/LiveSession';
 import { PlayerJoinPage } from './pages/player/Join';
 import { PlayerGamePage } from './pages/player/Game';
 import { IndividualGamePage } from './pages/player/IndividualGame';
+import { TournamentBuilderPage } from './pages/admin/TournamentBuilder';
+import { TournamentDashboardPage } from './pages/admin/TournamentDashboard';
+import { TournamentJoinPage } from './pages/player/TournamentJoin';
 
 function App() {
   const { isLoading, initializeAuth } = useAuthStore();
@@ -92,6 +95,23 @@ function App() {
         <Route path="/join" element={<PlayerJoinPage />} />
         <Route path="/play/:sessionPin" element={<PlayerGamePage />} />
         <Route path="/individual/:sessionPin" element={<IndividualGamePage />} />
+        <Route
+          path="/tournament/new"
+          element={
+            <ProtectedRoute>
+              <TournamentBuilderPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/tournaments/:tournamentId"
+          element={
+            <ProtectedRoute>
+              <TournamentDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/tournament/:tournamentId/join" element={<TournamentJoinPage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>

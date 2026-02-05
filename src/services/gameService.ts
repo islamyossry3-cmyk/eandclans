@@ -218,23 +218,30 @@ export const gameService = {
     }
   ): Promise<GamePlayer | null> {
     try {
+      console.log('[gameService.addPlayer] Adding player:', { gameId, playerName, team });
+      
       const { data, error } = await supabase
         .from('game_players')
         .insert({
           live_game_id: gameId,
           player_name: playerName,
           team,
-          player_email: registrationData?.email,
-          player_organization: registrationData?.organization,
+          player_email: registrationData?.email || null,
+          player_organization: registrationData?.organization || null,
           custom_fields: registrationData?.customFields || {},
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[gameService.addPlayer] Supabase error:', error.message, error.details, error.hint);
+        throw error;
+      }
+      
+      console.log('[gameService.addPlayer] Player added successfully:', data.id);
       return this.mapDbToGamePlayer(data);
     } catch (error) {
-      console.error('Failed to add player:', error);
+      console.error('[gameService.addPlayer] Failed to add player:', error instanceof Error ? error.message : error);
       return null;
     }
   },
@@ -401,6 +408,8 @@ export const gameService = {
     gameId: string,
     onUpdate: (players: GamePlayer[]) => void
   ): RealtimeChannel {
+    console.log('[gameService.subscribeToPlayers] Setting up subscription for game:', gameId);
+    
     const channel = supabase
       .channel(`players:${gameId}`)
       .on(
@@ -411,12 +420,16 @@ export const gameService = {
           table: 'game_players',
           filter: `live_game_id=eq.${gameId}`,
         },
-        async () => {
+        async (payload) => {
+          console.log('[gameService.subscribeToPlayers] Received player change:', payload.eventType);
           const players = await this.getPlayers(gameId);
+          console.log('[gameService.subscribeToPlayers] Updated player count:', players.length);
           onUpdate(players);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[gameService.subscribeToPlayers] Subscription status:', status);
+      });
 
     return channel;
   },

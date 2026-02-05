@@ -11,7 +11,7 @@ import { ToastContainer } from '../../components/shared/Toast';
 import { TeamIcon } from '../../components/shared/TeamIcon';
 import { Confetti } from '../../components/shared/Confetti';
 import { useToast } from '../../hooks/useToast';
-import { Play, Users, Clock, Grid3x3, Trophy, Copy, Check } from 'lucide-react';
+import { Play, Users, Clock, Grid3x3, Trophy, Copy, Check, Wifi, WifiOff } from 'lucide-react';
 import type { Session } from '../../types/session';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getTheme } from '../../constants/themes';
@@ -27,6 +27,7 @@ export function LiveSessionPage() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const { toasts, removeToast, success, info } = useToast();
   const prevPlayerCount = useRef(0);
   const prevTerritoryCount = useRef(0);
@@ -79,6 +80,21 @@ export function LiveSessionPage() {
     });
     channels.push(playersChannel);
 
+    // Track realtime connection status
+    const checkConnection = () => {
+      const allSubscribed = channels.every(ch => ch.state === 'joined');
+      setRealtimeConnected(allSubscribed);
+      if (allSubscribed) {
+        console.log('[Realtime] All channels connected successfully');
+      }
+    };
+    
+    // Check connection status after a short delay
+    const connectionTimer = setTimeout(checkConnection, 2000);
+    
+    // Log subscription states for debugging
+    console.log('[Realtime] Subscribing to channels for game:', liveGame.id);
+
     const territoriesChannel = gameService.subscribeToTerritories(liveGame.id, (updatedTerritories) => {
       if (prevTerritoryCount.current > 0 && updatedTerritories.length > prevTerritoryCount.current) {
         const newTerritory = updatedTerritories[updatedTerritories.length - 1];
@@ -91,7 +107,9 @@ export function LiveSessionPage() {
     channels.push(territoriesChannel);
 
     return () => {
+      clearTimeout(connectionTimer);
       channels.forEach((channel) => channel.unsubscribe());
+      setRealtimeConnected(false);
     };
   }, [liveGame?.id]);
 
@@ -318,9 +336,24 @@ export function LiveSessionPage() {
                 </p>
               </div>
 
-              <div className="flex items-center justify-center gap-2 text-gray-700 mb-6 text-lg">
+              <div className="flex items-center justify-center gap-2 text-gray-700 mb-4 text-lg">
                 <Users className="w-6 h-6" />
                 <span className="font-bold">{players.length} Players Joined</span>
+              </div>
+
+              {/* Realtime Connection Status */}
+              <div className="flex items-center justify-center gap-2 mb-6 text-sm">
+                {realtimeConnected ? (
+                  <>
+                    <Wifi className="w-4 h-4 text-green-500" />
+                    <span className="text-green-600 font-medium">Live updates active</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="w-4 h-4 text-yellow-500 animate-pulse" />
+                    <span className="text-yellow-600 font-medium">Connecting...</span>
+                  </>
+                )}
               </div>
 
               {players.length >= 2 && (

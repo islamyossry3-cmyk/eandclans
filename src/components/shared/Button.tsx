@@ -18,7 +18,7 @@ export function Button({
   style,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'font-bold uppercase tracking-wider rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:-translate-y-0.5 active:translate-y-0';
+  const baseStyles = 'font-bold uppercase tracking-wider rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-xl transform hover:-translate-y-1 hover:scale-[1.02] active:translate-y-0 active:scale-100';
 
   const variantStyles = {
     primary: {
