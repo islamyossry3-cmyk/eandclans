@@ -210,12 +210,7 @@ export const gameService = {
   async addPlayer(
     gameId: string,
     playerName: string,
-    team: 'team1' | 'team2' | null,
-    registrationData?: {
-      email?: string;
-      organization?: string;
-      customFields?: Record<string, string>;
-    }
+    team: 'team1' | 'team2' | null
   ): Promise<GamePlayer | null> {
     try {
       console.log('[gameService.addPlayer] Adding player:', { gameId, playerName, team });
@@ -226,9 +221,6 @@ export const gameService = {
           live_game_id: gameId,
           player_name: playerName,
           team,
-          player_email: registrationData?.email || null,
-          player_organization: registrationData?.organization || null,
-          custom_fields: registrationData?.customFields || {},
         })
         .select()
         .single();
