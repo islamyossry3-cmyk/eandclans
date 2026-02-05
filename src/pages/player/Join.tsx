@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { sessionService } from '../../services/sessionService';
 import { Input } from '../../components/shared/Input';
 import { Button } from '../../components/shared/Button';
 import { HelpModal } from '../../components/shared/HelpModal';
-import { Gamepad2, Users, HelpCircle, AlertCircle, CheckCircle } from 'lucide-react';
+import { Gamepad2, Users, HelpCircle, AlertCircle, CheckCircle, Zap, Target, Trophy } from 'lucide-react';
 import { eandColors } from '../../constants/eandColors';
 import type { Session } from '../../types/session';
 
@@ -112,168 +113,170 @@ export function PlayerJoinPage() {
     }
   };
 
+  const floatingItems = [
+    { Icon: Zap, x: '8%', y: '12%', delay: 0 },
+    { Icon: Target, x: '88%', y: '18%', delay: 0.8 },
+    { Icon: Trophy, x: '12%', y: '82%', delay: 1.6 },
+    { Icon: Gamepad2, x: '85%', y: '78%', delay: 0.4 },
+  ];
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: eandColors.lightGrey }}>
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-[2rem] shadow-2xl p-8">
-          <div className="text-center mb-8">
-            <div
-              className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4"
-              style={{ background: `linear-gradient(135deg, ${eandColors.red} 0%, ${eandColors.oceanBlue} 100%)` }}
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden game-gradient-bg">
+      <div className="absolute inset-0 game-grid-bg opacity-20" />
+
+      {floatingItems.map(({ Icon, x, y, delay }, i) => (
+        <motion.div
+          key={i}
+          className="absolute hidden sm:block"
+          style={{ left: x, top: y }}
+          animate={{ y: [-10, 10, -10], rotate: [-8, 8, -8] }}
+          transition={{ duration: 5, repeat: Infinity, delay, ease: 'easeInOut' }}
+        >
+          <Icon className="w-6 h-6" style={{ color: 'rgba(255,255,255,0.08)' }} />
+        </motion.div>
+      ))}
+
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md relative z-10"
+      >
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          <div className="relative px-6 pt-8 pb-6 text-center" style={{ background: `linear-gradient(135deg, ${eandColors.red} 0%, #c00700 100%)` }}>
+            <div className="absolute inset-0 game-grid-bg opacity-10" />
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+              className="relative z-10"
             >
-              <Gamepad2 className="w-10 h-10 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold mb-2" style={{ color: eandColors.oceanBlue }}>
-              Join the Battle
-            </h1>
-            <p style={{ color: eandColors.grey }}>
-              Enter your session PIN and name to start playing
-            </p>
+              <div className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', border: '2px solid rgba(255,255,255,0.3)' }}>
+                <Gamepad2 className="w-8 h-8 text-white" />
+              </div>
+            </motion.div>
+            <h1 className="text-2xl font-extrabold text-white mb-1 relative z-10">Join the Battle</h1>
+            <p className="text-sm text-white/70 relative z-10">Enter your PIN and get ready to play</p>
           </div>
 
-          <form onSubmit={handleJoin} className="space-y-6">
-            <div>
-              <label htmlFor="pin" className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>
-                Session PIN
-              </label>
-              <div className="relative">
-                <Input
-                  id="pin"
-                  type="text"
-                  placeholder="Enter 6-digit PIN"
-                  value={pin}
-                  onChange={(e) => {
-                    const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    if (value.length <= 6) {
-                      setPin(value);
-                      if (value.length < 6) {
-                        setPinValid(null);
-                        setSession(null);
+          <div className="p-6">
+            <form onSubmit={handleJoin} className="space-y-5">
+              <div>
+                <label htmlFor="pin" className="block text-sm font-semibold mb-1.5" style={{ color: eandColors.oceanBlue }}>Session PIN</label>
+                <div className="relative">
+                  <Input
+                    id="pin"
+                    type="text"
+                    placeholder="XXXXXX"
+                    value={pin}
+                    onChange={(e) => {
+                      const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                      if (value.length <= 6) {
+                        setPin(value);
+                        if (value.length < 6) { setPinValid(null); setSession(null); }
                       }
-                    }
-                  }}
-                  maxLength={6}
-                  className="text-center text-2xl font-mono tracking-widest pr-12"
-                  autoComplete="off"
-                />
-                {pin.length === 6 && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    {isValidatingPin ? (
-                      <div className="animate-spin h-6 w-6 border-2 rounded-full" style={{ borderColor: `${eandColors.oceanBlue}30`, borderTopColor: eandColors.red }} />
-                    ) : pinValid === true ? (
-                      <CheckCircle className="w-6 h-6" style={{ color: eandColors.brightGreen }} />
-                    ) : pinValid === false ? (
-                      <AlertCircle className="w-6 h-6" style={{ color: eandColors.red }} />
-                    ) : null}
-                  </div>
+                    }}
+                    maxLength={6}
+                    className="text-center text-2xl font-mono tracking-[0.3em] pr-12"
+                    autoComplete="off"
+                  />
+                  {pin.length === 6 && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {isValidatingPin ? (
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                          className="h-5 w-5 border-2 rounded-full" style={{ borderColor: `${eandColors.oceanBlue}30`, borderTopColor: eandColors.red }} />
+                      ) : pinValid === true ? (
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring' }}>
+                          <CheckCircle className="w-5 h-5" style={{ color: eandColors.brightGreen }} />
+                        </motion.div>
+                      ) : pinValid === false ? (
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                          <AlertCircle className="w-5 h-5" style={{ color: eandColors.red }} />
+                        </motion.div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+                {pin.length === 6 && pinValid === false && (
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs mt-1.5" style={{ color: eandColors.red }}>
+                    Invalid PIN. Please check and try again.
+                  </motion.p>
+                )}
+                {pin.length === 6 && pinValid === true && session && (
+                  <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 px-3 py-2 rounded-lg flex items-center gap-2"
+                    style={{ backgroundColor: `${eandColors.brightGreen}08`, border: `1px solid ${eandColors.brightGreen}20` }}>
+                    <CheckCircle className="w-4 h-4 flex-shrink-0" style={{ color: eandColors.brightGreen }} />
+                    <span className="text-sm font-medium" style={{ color: eandColors.brightGreen }}>{session.name}</span>
+                  </motion.div>
                 )}
               </div>
-              {pin.length === 6 && pinValid === false && (
-                <p className="text-sm mt-2" style={{ color: eandColors.red }}>Invalid PIN. Please check and try again.</p>
-              )}
-              {pin.length === 6 && pinValid === true && session && (
-                <p className="text-sm mt-2 font-medium" style={{ color: eandColors.brightGreen }}>
-                  ✓ Found: {session.name}
-                </p>
-              )}
-            </div>
 
-            <div>
-              <label htmlFor="playerName" className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>
-                Your Name {session?.registrationFields?.find(f => f.id === 'name')?.required !== false && <span style={{ color: eandColors.red }}>*</span>}
-              </label>
-              <div className="relative">
-                <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: eandColors.mediumGrey }} />
+              <div>
+                <label htmlFor="playerName" className="block text-sm font-semibold mb-1.5" style={{ color: eandColors.oceanBlue }}>
+                  Your Name {session?.registrationFields?.find(f => f.id === 'name')?.required !== false && <span style={{ color: eandColors.red }}>*</span>}
+                </label>
                 <Input
                   id="playerName"
                   type="text"
-                  placeholder={session?.registrationFields?.find(f => f.id === 'name')?.placeholder || "Enter your name"}
+                  placeholder={session?.registrationFields?.find(f => f.id === 'name')?.placeholder || "What should we call you?"}
                   value={playerName}
                   onChange={(e) => setPlayerName(e.target.value)}
-                  className="pl-10"
                   autoComplete="off"
                 />
               </div>
+
+              {session?.registrationFields?.find(f => f.id === 'email')?.enabled && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                  <label htmlFor="playerEmail" className="block text-sm font-semibold mb-1.5" style={{ color: eandColors.oceanBlue }}>
+                    Email {session?.registrationFields?.find(f => f.id === 'email')?.required && <span style={{ color: eandColors.red }}>*</span>}
+                  </label>
+                  <Input id="playerEmail" type="email" placeholder={session?.registrationFields?.find(f => f.id === 'email')?.placeholder || "your.email@example.com"} value={playerEmail} onChange={(e) => setPlayerEmail(e.target.value)} autoComplete="email" />
+                </motion.div>
+              )}
+
+              {session?.registrationFields?.find(f => f.id === 'organization')?.enabled && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                  <label htmlFor="playerOrganization" className="block text-sm font-semibold mb-1.5" style={{ color: eandColors.oceanBlue }}>
+                    Organization {session?.registrationFields?.find(f => f.id === 'organization')?.required && <span style={{ color: eandColors.red }}>*</span>}
+                  </label>
+                  <Input id="playerOrganization" type="text" placeholder={session?.registrationFields?.find(f => f.id === 'organization')?.placeholder || "Your company or school"} value={playerOrganization} onChange={(e) => setPlayerOrganization(e.target.value)} autoComplete="organization" />
+                </motion.div>
+              )}
+
+              {session?.registrationFields?.filter(f => f.enabled && !['name', 'email', 'organization'].includes(f.id)).map(field => (
+                <motion.div key={field.id} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                  <label htmlFor={field.id} className="block text-sm font-semibold mb-1.5" style={{ color: eandColors.oceanBlue }}>
+                    {field.label} {field.required && <span style={{ color: eandColors.red }}>*</span>}
+                  </label>
+                  <Input id={field.id} type={field.type} placeholder={field.placeholder} value={customFields[field.id] || ''} onChange={(e) => setCustomFields({ ...customFields, [field.id]: e.target.value })} />
+                </motion.div>
+              ))}
+
+              {error && (
+                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl px-4 py-3 flex items-center gap-2"
+                  style={{ backgroundColor: `${eandColors.red}08`, border: `1px solid ${eandColors.red}15` }}>
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: eandColors.red }} />
+                  <p className="text-sm" style={{ color: eandColors.red }}>{error}</p>
+                </motion.div>
+              )}
+
+              <Button type="submit" size="lg" className="w-full" isLoading={isLoading} disabled={!pin.trim() || !playerName.trim()}>
+                <Zap className="w-5 h-5" /> Join Game
+              </Button>
+            </form>
+
+            <div className="mt-6 pt-5 border-t text-center" style={{ borderColor: `${eandColors.oceanBlue}08` }}>
+              <p className="text-xs mb-3" style={{ color: eandColors.grey }}>
+                No PIN? Ask your host or scan the QR code on screen
+              </p>
+              <button onClick={() => setShowHelp(true)} className="inline-flex items-center gap-1.5 text-xs font-medium transition-opacity hover:opacity-70" style={{ color: eandColors.oceanBlue }}>
+                <HelpCircle className="w-3.5 h-3.5" /> How to Play
+              </button>
             </div>
-
-            {session?.registrationFields?.find(f => f.id === 'email')?.enabled && (
-              <div>
-                <label htmlFor="playerEmail" className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>
-                  Email {session?.registrationFields?.find(f => f.id === 'email')?.required && <span style={{ color: eandColors.red }}>*</span>}
-                </label>
-                <Input
-                  id="playerEmail"
-                  type="email"
-                  placeholder={session?.registrationFields?.find(f => f.id === 'email')?.placeholder || "your.email@example.com"}
-                  value={playerEmail}
-                  onChange={(e) => setPlayerEmail(e.target.value)}
-                  autoComplete="email"
-                />
-              </div>
-            )}
-
-            {session?.registrationFields?.find(f => f.id === 'organization')?.enabled && (
-              <div>
-                <label htmlFor="playerOrganization" className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>
-                  Organization {session?.registrationFields?.find(f => f.id === 'organization')?.required && <span style={{ color: eandColors.red }}>*</span>}
-                </label>
-                <Input
-                  id="playerOrganization"
-                  type="text"
-                  placeholder={session?.registrationFields?.find(f => f.id === 'organization')?.placeholder || "Your company or school"}
-                  value={playerOrganization}
-                  onChange={(e) => setPlayerOrganization(e.target.value)}
-                  autoComplete="organization"
-                />
-              </div>
-            )}
-
-            {session?.registrationFields?.filter(f => f.enabled && !['name', 'email', 'organization'].includes(f.id)).map(field => (
-              <div key={field.id}>
-                <label htmlFor={field.id} className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>
-                  {field.label} {field.required && <span style={{ color: eandColors.red }}>*</span>}
-                </label>
-                <Input
-                  id={field.id}
-                  type={field.type}
-                  placeholder={field.placeholder}
-                  value={customFields[field.id] || ''}
-                  onChange={(e) => setCustomFields({ ...customFields, [field.id]: e.target.value })}
-                />
-              </div>
-            ))}
-
-            {error && (
-              <div className="rounded-2xl p-4" style={{ backgroundColor: `${eandColors.red}10`, border: `1px solid ${eandColors.red}30` }}>
-                <p className="text-sm" style={{ color: eandColors.red }}>{error}</p>
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full"
-              disabled={isLoading || !pin.trim() || !playerName.trim()}
-            >
-              {isLoading ? 'Joining...' : 'Join Game'}
-            </Button>
-          </form>
-
-          <div className="mt-8 pt-8 border-t" style={{ borderColor: eandColors.mediumGrey }}>
-            <p className="text-center text-sm mb-4" style={{ color: eandColors.grey }}>
-              Don't have a PIN? Ask your game host or scan the QR code displayed on screen.
-            </p>
-            <button
-              onClick={() => setShowHelp(true)}
-              className="flex items-center gap-2 text-sm mx-auto transition-opacity hover:opacity-70"
-              style={{ color: eandColors.oceanBlue }}
-            >
-              <HelpCircle className="w-4 h-4" />
-              How to Play
-            </button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} role="player" />
     </div>

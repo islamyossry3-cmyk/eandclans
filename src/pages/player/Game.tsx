@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { sessionService } from '../../services/sessionService';
 import { gameService, type LiveGame, type GamePlayer, type HexTerritory } from '../../services/gameService';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -12,10 +13,11 @@ import { useGameEffects } from '../../hooks/useGameEffects';
 import { Confetti as SharedConfetti } from '../../components/shared/Confetti';
 import { ScorePopup, ScoreStreak, Celebration, AchievementToast } from '../../components/game';
 import { PlayerHexGrid } from '../../components/game/PlayerHexGrid';
-import { Clock, Trophy, CheckCircle, XCircle, Users, Volume2, VolumeX } from 'lucide-react';
+import { Clock, Trophy, CheckCircle, XCircle, Users, Volume2, VolumeX, Target, Zap, MapPin, AlertCircle } from 'lucide-react';
 import type { Session } from '../../types/session';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getTheme } from '../../constants/themes';
+import { eandColors } from '../../constants/eandColors';
 
 export function PlayerGamePage() {
   const { sessionPin } = useParams<{ sessionPin: string }>();
@@ -404,8 +406,9 @@ export function PlayerGamePage() {
   if (isLoading) {
     return (
       <>
-        <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center">
-          <Loading />
+        <div className="min-h-screen game-gradient-bg flex items-center justify-center">
+          <div className="game-grid-bg absolute inset-0 opacity-20" />
+          <Loading size="lg" />
         </div>
         <ToastContainer toasts={toasts} onClose={removeToast} />
       </>
@@ -415,12 +418,16 @@ export function PlayerGamePage() {
   if (!session || !liveGame) {
     return (
       <>
-        <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-md">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Session Not Found</h1>
-            <p className="text-gray-600 mb-6">The session you're trying to join doesn't exist.</p>
+        <div className="min-h-screen game-gradient-bg flex items-center justify-center p-4">
+          <div className="game-grid-bg absolute inset-0 opacity-20" />
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-md relative z-10">
+            <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: `${eandColors.red}10` }}>
+              <AlertCircle className="w-8 h-8" style={{ color: eandColors.red }} />
+            </div>
+            <h1 className="text-xl font-bold mb-2" style={{ color: eandColors.oceanBlue }}>Session Not Found</h1>
+            <p className="text-sm mb-6" style={{ color: eandColors.grey }}>The session you're trying to join doesn't exist.</p>
             <Button onClick={() => navigate('/join')}>Back to Join</Button>
-          </div>
+          </motion.div>
         </div>
         <ToastContainer toasts={toasts} onClose={removeToast} />
       </>
@@ -428,137 +435,76 @@ export function PlayerGamePage() {
   }
 
   if (liveGame.status === 'lobby' && !team) {
-    const theme = getTheme(session.design.backgroundTheme || 'innovation');
-    const islandImage = theme.backgroundImage;
     const team1Count = allPlayers.filter((p) => p.team === 'team1').length;
     const team2Count = allPlayers.filter((p) => p.team === 'team2').length;
     const team1Full = team1Count >= session.config.maxPlayersPerTeam;
     const team2Full = team2Count >= session.config.maxPlayersPerTeam;
 
     return (
-      <div className="relative min-h-screen overflow-hidden p-4">
-        {/* Blurred Background */}
-        {islandImage && (
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url(${islandImage})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'blur(30px) brightness(0.8)',
-              transform: 'scale(1.1)',
-              zIndex: -20,
-            }}
-          />
-        )}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: theme.gradients.player,
-            opacity: 0.9,
-            zIndex: -10,
-          }}
-        />
+      <div className="relative min-h-screen overflow-hidden p-4 game-gradient-bg">
+        <div className="game-grid-bg absolute inset-0 opacity-20" />
 
-        <div className="max-w-3xl mx-auto pt-8 relative z-10">
-          <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] shadow-2xl p-6 md:p-8 mb-6">
-            <div className="text-center mb-8">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-                Welcome, {playerName}!
-              </h1>
-              <p className="text-gray-600 mb-2">Choose your team to join the battle</p>
-              <p className="text-sm text-blue-600 font-medium animate-pulse">👆 Tap a team to join</p>
+        <div className="max-w-lg mx-auto pt-6 sm:pt-10 relative z-10">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+            <div className="text-center mb-6">
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring' }}
+                className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+                style={{ background: `${eandColors.brightGreen}20`, border: `2px solid ${eandColors.brightGreen}40` }}>
+                <Users className="w-7 h-7" style={{ color: eandColors.brightGreen }} />
+              </motion.div>
+              <h1 className="text-2xl font-extrabold text-white mb-1">Welcome, {playerName}!</h1>
+              <p className="text-sm text-white/60">Choose your team to join the battle</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {/* Team 1 Flag */}
-              <button
-                onClick={() => handleTeamSelect('team1')}
-                disabled={team1Full || isLoading}
-                className="relative overflow-hidden touch-manipulation disabled:opacity-50 min-h-[200px] w-full"
-                style={{
-                  clipPath: !team1Full ? 'polygon(0 0, 100% 0, 100% calc(100% - 40px), 50% 100%, 0 calc(100% - 40px))' : 'none',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                <div
-                  className={`p-6 backdrop-blur-sm transition-all ${
-                    team1Full || isLoading
-                      ? 'bg-gray-100 cursor-not-allowed'
-                      : 'hover:scale-105 active:scale-95 cursor-pointer'
-                  }`}
-                  style={{
-                    background: team1Full ? undefined : `linear-gradient(135deg, ${session.design.team1.color}CC 0%, ${session.design.team1.color}AA 100%)`,
-                    border: `4px solid ${session.design.team1.color}`,
-                    minHeight: '280px',
-                  }}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                { key: 'team1' as const, design: session.design.team1, count: team1Count, full: team1Full },
+                { key: 'team2' as const, design: session.design.team2, count: team2Count, full: team2Full },
+              ].map(({ key, design, count, full }, i) => (
+                <motion.button
+                  key={key}
+                  initial={{ opacity: 0, x: i === 0 ? -30 : 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 + i * 0.15 }}
+                  whileTap={full || isLoading ? undefined : { scale: 0.95 }}
+                  whileHover={full || isLoading ? undefined : { scale: 1.03, y: -4 }}
+                  onClick={() => handleTeamSelect(key)}
+                  disabled={full || isLoading}
+                  className="relative overflow-hidden rounded-2xl mobile-touch disabled:opacity-50 w-full"
                 >
-                  <div className="flex justify-center mb-4">
-                    <TeamIcon icon={session.design.team1.icon} size="3xl" />
+                  <div className="p-6 text-center" style={{
+                    background: full ? `${eandColors.grey}20` : `linear-gradient(145deg, ${design.color}dd, ${design.color}99)`,
+                    border: `3px solid ${full ? eandColors.grey + '40' : design.color}`,
+                    minHeight: '220px',
+                  }}>
+                    <div className="flex justify-center mb-3">
+                      <TeamIcon icon={design.icon} size="3xl" />
+                    </div>
+                    <h3 className="text-xl font-extrabold text-white mb-2 drop-shadow-lg">{design.name}</h3>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-white/90 text-sm font-bold"
+                      style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+                      <Users className="w-4 h-4" />
+                      {count} / {session.config.maxPlayersPerTeam}
+                    </div>
+                    {full && (
+                      <motion.p initial={{ scale: 0 }} animate={{ scale: 1 }}
+                        className="font-bold mt-3 text-sm px-4 py-1.5 rounded-full inline-block"
+                        style={{ background: 'rgba(255,255,255,0.9)', color: eandColors.red }}>
+                        Team Full
+                      </motion.p>
+                    )}
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-3 drop-shadow-lg">
-                    {session.design.team1.name}
-                  </h3>
-                  <div className="flex items-center justify-center gap-2 text-white text-lg">
-                    <Users className="w-5 h-5" />
-                    <span className="font-bold">
-                      {team1Count} / {session.config.maxPlayersPerTeam}
-                    </span>
-                  </div>
-                  {team1Full && (
-                    <p className="text-red-600 font-bold mt-3 bg-white/90 rounded-2xl py-1 px-3">Team Full</p>
-                  )}
-                </div>
-              </button>
-
-              {/* Team 2 Flag */}
-              <button
-                onClick={() => handleTeamSelect('team2')}
-                disabled={team2Full || isLoading}
-                className="relative overflow-hidden touch-manipulation disabled:opacity-50 min-h-[200px] w-full"
-                style={{
-                  clipPath: !team2Full ? 'polygon(0 0, 100% 0, 100% calc(100% - 40px), 50% 100%, 0 calc(100% - 40px))' : 'none',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                <div
-                  className={`p-6 backdrop-blur-sm transition-all ${
-                    team2Full || isLoading
-                      ? 'bg-gray-100 cursor-not-allowed'
-                      : 'hover:scale-105 active:scale-95 cursor-pointer'
-                  }`}
-                  style={{
-                    background: team2Full ? undefined : `linear-gradient(135deg, ${session.design.team2.color}CC 0%, ${session.design.team2.color}AA 100%)`,
-                    border: `4px solid ${session.design.team2.color}`,
-                    minHeight: '280px',
-                  }}
-                >
-                  <div className="flex justify-center mb-4">
-                    <TeamIcon icon={session.design.team2.icon} size="3xl" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white mb-3 drop-shadow-lg">
-                    {session.design.team2.name}
-                  </h3>
-                  <div className="flex items-center justify-center gap-2 text-white text-lg">
-                    <Users className="w-5 h-5" />
-                    <span className="font-bold">
-                      {team2Count} / {session.config.maxPlayersPerTeam}
-                    </span>
-                  </div>
-                  {team2Full && (
-                    <p className="text-red-600 font-bold mt-3 bg-white/90 rounded-2xl py-1 px-3">Team Full</p>
-                  )}
-                </div>
-              </button>
+                </motion.button>
+              ))}
             </div>
 
             {isLoading && (
-              <div className="mt-6 text-center">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-blue-600"></div>
-                <p className="text-gray-600 mt-2 font-semibold">Joining team...</p>
-              </div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 text-center">
+                <Loading size="sm" />
+                <p className="text-white/60 mt-2 text-sm font-medium">Joining team...</p>
+              </motion.div>
             )}
-          </div>
+          </motion.div>
         </div>
         <ToastContainer toasts={toasts} onClose={removeToast} />
       </div>
@@ -566,63 +512,40 @@ export function PlayerGamePage() {
   }
 
   if (liveGame.status === 'lobby' && team) {
-    const theme = getTheme(session.design.backgroundTheme || 'innovation');
-    const islandImage = theme.backgroundImage;
     const teamColor = team === 'team1' ? session.design.team1.color : session.design.team2.color;
     const teamName = team === 'team1' ? session.design.team1.name : session.design.team2.name;
     const teamIcon = team === 'team1' ? session.design.team1.icon : session.design.team2.icon;
 
     return (
-      <div className="relative min-h-screen overflow-hidden flex items-center justify-center p-4">
-        {/* Blurred Background */}
-        {islandImage && (
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url(${islandImage})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'blur(30px) brightness(0.8)',
-              transform: 'scale(1.1)',
-              zIndex: -20,
-            }}
-          />
-        )}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: theme.gradients.player,
-            opacity: 0.9,
-            zIndex: -10,
-          }}
-        />
+      <div className="relative min-h-screen overflow-hidden flex items-center justify-center p-4 game-gradient-bg">
+        <div className="game-grid-bg absolute inset-0 opacity-20" />
 
-        <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] shadow-2xl p-8 max-w-md w-full text-center relative z-10">
-          <div
-            className="w-32 h-32 rounded-full mx-auto mb-6 flex items-center justify-center"
-            style={{ backgroundColor: `${teamColor}30`, border: `4px solid ${teamColor}` }}
-          >
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}
+          className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center relative z-10">
+          <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 3, repeat: Infinity }}
+            className="w-24 h-24 rounded-full mx-auto mb-5 flex items-center justify-center"
+            style={{ backgroundColor: `${teamColor}15`, border: `3px solid ${teamColor}` }}>
             <TeamIcon icon={teamIcon} size="3xl" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">You're on {teamName}!</h1>
-          <p className="text-gray-600 mb-8">Waiting for the game to start...</p>
+          </motion.div>
+          <h1 className="text-2xl font-extrabold mb-1" style={{ color: eandColors.oceanBlue }}>You're on {teamName}!</h1>
+          <p className="text-sm mb-6" style={{ color: eandColors.grey }}>Waiting for the game to start...</p>
 
-          <div className="bg-gray-50 rounded-2xl p-6 mb-6">
-            <div className="flex items-center justify-center gap-2 text-gray-700 mb-2">
-              <Users className="w-6 h-6" />
-              <span className="font-bold text-lg">{allPlayers.length} Players Joined</span>
+          <div className="rounded-xl p-5 mb-5" style={{ background: `${eandColors.oceanBlue}05`, border: `1px solid ${eandColors.oceanBlue}08` }}>
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <Users className="w-5 h-5" style={{ color: eandColors.oceanBlue }} />
+              <span className="text-lg font-bold" style={{ color: eandColors.oceanBlue }}>{allPlayers.length} Players Joined</span>
             </div>
-            <p className="text-sm text-gray-600">The host will start the game soon</p>
+            <p className="text-xs" style={{ color: eandColors.grey }}>The host will start the game soon</p>
           </div>
 
-          <div className="animate-pulse flex justify-center">
-            <div className="flex space-x-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: teamColor }}></div>
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: teamColor, opacity: 0.7 }}></div>
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: teamColor, opacity: 0.4 }}></div>
-            </div>
+          <div className="flex justify-center gap-2">
+            {[1, 0.7, 0.4].map((opacity, i) => (
+              <motion.div key={i} animate={{ scale: [1, 1.3, 1] }}
+                transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: teamColor, opacity }} />
+            ))}
           </div>
-        </div>
+        </motion.div>
         <ToastContainer toasts={toasts} onClose={removeToast} />
       </div>
     );
@@ -637,19 +560,18 @@ export function PlayerGamePage() {
     if (availableTerritories.length > 0) {
       return (
         <div className="relative min-h-screen">
-          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
-            <div className="bg-white/95 backdrop-blur-sm rounded-[2rem] shadow-2xl px-8 py-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircle className="w-7 h-7 text-green-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">Correct!</h2>
-                  <p className="text-sm text-gray-600">Tap a territory to claim it</p>
-                </div>
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
+            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
+            <div className="bg-white rounded-2xl shadow-2xl px-6 py-3 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${eandColors.brightGreen}15` }}>
+                <CheckCircle className="w-6 h-6" style={{ color: eandColors.brightGreen }} />
+              </div>
+              <div>
+                <h2 className="text-lg font-extrabold" style={{ color: eandColors.oceanBlue }}>Correct!</h2>
+                <p className="text-xs" style={{ color: eandColors.grey }}>Tap a territory to claim it</p>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           <PlayerHexGrid
             gridSize={session.config.hexGridSize}
@@ -664,14 +586,18 @@ export function PlayerGamePage() {
             newlyClaimedHex={newlyClaimedHex}
           />
 
-          {claimingTerritory && (
-            <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
-              <div className="bg-green-600 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-2xl flex items-center gap-3">
-                <CheckCircle className="w-6 h-6 animate-pulse" />
-                <span>Territory Claimed!</span>
-              </div>
-            </div>
-          )}
+          <AnimatePresence>
+            {claimingTerritory && (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+                className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
+                <div className="px-6 py-3 rounded-full font-bold text-white shadow-2xl flex items-center gap-2"
+                  style={{ background: `linear-gradient(135deg, ${eandColors.brightGreen}, ${eandColors.darkGreen})` }}>
+                  <MapPin className="w-5 h-5 animate-pulse" />
+                  <span>Territory Claimed!</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <ToastContainer toasts={toasts} onClose={removeToast} />
         </div>
@@ -680,105 +606,111 @@ export function PlayerGamePage() {
 
     if (currentQuestion) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-4">
-          <div className="max-w-2xl mx-auto pt-4">
-            <div className="bg-white/10 backdrop-blur-md rounded-3xl p-4 mb-4 text-white">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  <span className="text-xl font-bold font-mono">{formatTime(timeRemaining)}</span>
+        <div className="min-h-screen game-gradient-bg p-4">
+          <div className="game-grid-bg absolute inset-0 opacity-10" />
+          <div className="max-w-2xl mx-auto pt-3 relative z-10">
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl p-3 mb-4 game-surface">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl" style={{ background: `${eandColors.red}20` }}>
+                  <Clock className="w-4 h-4" style={{ color: eandColors.red }} />
+                  <span className="text-lg font-extrabold font-mono text-white">{formatTime(timeRemaining)}</span>
                 </div>
-                <div className="flex items-center gap-4 text-sm">
-                  <span>Your Team: {myScore}</span>
-                  <span>Opponent: {opponentScore}</span>
+                <div className="flex items-center gap-3 text-xs text-white/70">
+                  <span className="px-2 py-1 rounded-lg" style={{ background: `${teamColor}30` }}>You: {myScore}</span>
+                  <span className="px-2 py-1 rounded-lg bg-white/10">Opp: {opponentScore}</span>
                 </div>
               </div>
               {playerData && (
-                <div className="grid grid-cols-3 gap-3 text-center text-xs">
-                  <div>
-                    <p className="opacity-75">Territories</p>
-                    <p className="text-lg font-bold">{playerData.territoriesClaimed}</p>
-                  </div>
-                  <div>
-                    <p className="opacity-75">Answered</p>
-                    <p className="text-lg font-bold">{playerData.questionsAnswered}</p>
-                  </div>
-                  <div>
-                    <p className="opacity-75">Correct</p>
-                    <p className="text-lg font-bold">{playerData.correctAnswers}</p>
-                  </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  {[
+                    { label: 'Territories', value: playerData.territoriesClaimed, icon: MapPin },
+                    { label: 'Answered', value: playerData.questionsAnswered, icon: Target },
+                    { label: 'Correct', value: playerData.correctAnswers, icon: CheckCircle },
+                  ].map(({ label, value, icon: Icon }) => (
+                    <div key={label} className="rounded-lg py-1.5 bg-white/5">
+                      <Icon className="w-3 h-3 mx-auto mb-0.5 text-white/50" />
+                      <p className="text-white font-bold text-sm">{value}</p>
+                      <p className="text-[10px] text-white/40">{label}</p>
+                    </div>
+                  ))}
                 </div>
               )}
-            </div>
+            </motion.div>
 
-            <div className="bg-white rounded-[2rem] shadow-2xl p-8">
-              {answerResult ? (
-                <div className="text-center">
-                  {answerResult === 'correct' ? (
-                    <>
-                      <div className="w-20 h-20 rounded-full bg-green-100 mx-auto mb-4 flex items-center justify-center">
-                        <CheckCircle className="w-12 h-12 text-green-600" />
-                      </div>
-                      <h2 className="text-3xl font-bold text-green-600 mb-2">Correct!</h2>
-                      <p className="text-gray-600">Preparing territory selection...</p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-20 h-20 rounded-full bg-red-100 mx-auto mb-4 flex items-center justify-center">
-                        <XCircle className="w-12 h-12 text-red-600" />
-                      </div>
-                      <h2 className="text-3xl font-bold text-red-600 mb-2">Incorrect</h2>
-                      <p className="text-gray-600">Try the next question...</p>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                    {currentQuestion.text}
-                  </h2>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+              className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
+              <AnimatePresence mode="wait">
+                {answerResult ? (
+                  <motion.div key="result" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }} className="text-center py-4">
+                    {answerResult === 'correct' ? (
+                      <>
+                        <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.5 }}
+                          className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+                          style={{ background: `${eandColors.brightGreen}15` }}>
+                          <CheckCircle className="w-10 h-10" style={{ color: eandColors.brightGreen }} />
+                        </motion.div>
+                        <h2 className="text-2xl font-extrabold mb-1" style={{ color: eandColors.brightGreen }}>Correct!</h2>
+                        <p className="text-sm" style={{ color: eandColors.grey }}>Preparing territory selection...</p>
+                      </>
+                    ) : (
+                      <>
+                        <motion.div animate={{ x: [-4, 4, -4, 4, 0] }} transition={{ duration: 0.4 }}
+                          className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+                          style={{ background: `${eandColors.red}10` }}>
+                          <XCircle className="w-10 h-10" style={{ color: eandColors.red }} />
+                        </motion.div>
+                        <h2 className="text-2xl font-extrabold mb-1" style={{ color: eandColors.red }}>Incorrect</h2>
+                        <p className="text-sm" style={{ color: eandColors.grey }}>Try the next question...</p>
+                      </>
+                    )}
+                  </motion.div>
+                ) : (
+                  <motion.div key="question" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <h2 className="text-xl sm:text-2xl font-extrabold mb-5" style={{ color: eandColors.oceanBlue }}>
+                      {currentQuestion.text}
+                    </h2>
 
-                  <div className="space-y-3 mb-6">
-                    {currentQuestion.options?.map((option: any) => (
-                      <button
-                        key={option.id}
-                        onClick={() => handleAnswerSelect(option.id)}
-                        disabled={hasAnswered}
-                        className={`w-full p-4 rounded-3xl border-2 text-left transition-all ${
-                          selectedAnswer === option.id
-                            ? 'border-current bg-current bg-opacity-10'
-                            : 'border-gray-300 hover:border-gray-400'
-                        } ${hasAnswered ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                        style={{
-                          borderColor: selectedAnswer === option.id ? teamColor : undefined,
-                          backgroundColor: selectedAnswer === option.id ? `${teamColor}10` : undefined,
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
-                            style={{ backgroundColor: selectedAnswer === option.id ? teamColor : '#d1d5db' }}
-                          >
-                            {option.id}
-                          </span>
-                          <span className="font-medium text-gray-900">{option.text}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                    <div className="space-y-3 mb-5">
+                      {currentQuestion.options?.map((option: any, idx: number) => (
+                        <motion.button
+                          key={option.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.08 }}
+                          whileTap={hasAnswered ? undefined : { scale: 0.98 }}
+                          onClick={() => handleAnswerSelect(option.id)}
+                          disabled={hasAnswered}
+                          className="w-full p-4 rounded-xl text-left transition-all mobile-touch"
+                          style={{
+                            border: `2px solid ${selectedAnswer === option.id ? teamColor : eandColors.oceanBlue + '12'}`,
+                            background: selectedAnswer === option.id ? `${teamColor}08` : 'transparent',
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0"
+                              style={{
+                                background: selectedAnswer === option.id ? teamColor : `${eandColors.oceanBlue}10`,
+                                color: selectedAnswer === option.id ? 'white' : eandColors.oceanBlue,
+                              }}>
+                              {String.fromCharCode(65 + idx)}
+                            </span>
+                            <span className="font-medium" style={{ color: eandColors.oceanBlue }}>{option.text}</span>
+                          </div>
+                        </motion.button>
+                      ))}
+                    </div>
 
-                  <Button
-                    onClick={handleSubmitAnswer}
-                    size="lg"
-                    className="w-full"
-                    disabled={selectedAnswer === null || hasAnswered}
-                    style={{ backgroundColor: teamColor }}
-                  >
-                    Submit Answer
-                  </Button>
-                </>
-              )}
-            </div>
+                    <Button onClick={handleSubmitAnswer} size="lg" className="w-full"
+                      disabled={selectedAnswer === null || hasAnswered}
+                      style={{ background: `linear-gradient(135deg, ${teamColor}, ${teamColor}cc)` }}>
+                      <Zap className="w-5 h-5" /> Submit Answer
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           </div>
           <ToastContainer toasts={toasts} onClose={removeToast} />
         </div>
@@ -787,35 +719,38 @@ export function PlayerGamePage() {
 
     return (
       <>
-        <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-4">
-        <div className="bg-white rounded-[2rem] shadow-2xl p-8 max-w-md w-full text-center">
-          <div
-            className="w-24 h-24 rounded-full mx-auto mb-6 flex items-center justify-center"
-            style={{ backgroundColor: `${teamColor}30`, border: `4px solid ${teamColor}` }}
+        <div className="min-h-screen game-gradient-bg flex items-center justify-center p-4">
+          <div className="game-grid-bg absolute inset-0 opacity-15" />
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full text-center relative z-10">
+          <motion.div
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="w-20 h-20 rounded-2xl mx-auto mb-5 flex items-center justify-center"
+            style={{ background: `linear-gradient(135deg, ${teamColor}20, ${teamColor}30)`, border: `3px solid ${teamColor}` }}
           >
-            <Trophy className="w-12 h-12" style={{ color: teamColor }} />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Ready to Play!</h1>
+            <Trophy className="w-10 h-10" style={{ color: teamColor }} />
+          </motion.div>
+          <h1 className="text-2xl font-extrabold mb-1" style={{ color: eandColors.oceanBlue }}>Ready to Play!</h1>
+          <p className="text-sm mb-5" style={{ color: eandColors.grey }}>Tap below to get a question</p>
 
-          <div className="bg-gray-50 rounded-2xl p-6 mb-6">
+          <div className="rounded-xl p-4 mb-5" style={{ background: `${eandColors.oceanBlue}05`, border: `1px solid ${eandColors.oceanBlue}08` }}>
             <div className="grid grid-cols-2 gap-4 text-center">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Your Score</p>
-                <p className="text-3xl font-bold" style={{ color: teamColor }}>
-                  {myScore}
-                </p>
+                <p className="text-xs font-medium mb-1" style={{ color: eandColors.grey }}>Your Team</p>
+                <p className="text-3xl font-extrabold" style={{ color: teamColor }}>{myScore}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 mb-1">Opponent</p>
-                <p className="text-3xl font-bold text-gray-900">{opponentScore}</p>
+                <p className="text-xs font-medium mb-1" style={{ color: eandColors.grey }}>Opponent</p>
+                <p className="text-3xl font-extrabold" style={{ color: eandColors.oceanBlue }}>{opponentScore}</p>
               </div>
             </div>
           </div>
 
-          <Button onClick={getNewQuestion} size="lg" className="w-full" style={{ backgroundColor: teamColor }}>
-            Get Question
+          <Button onClick={getNewQuestion} size="lg" className="w-full" style={{ background: `linear-gradient(135deg, ${teamColor}, ${teamColor}cc)` }}>
+            <Zap className="w-5 h-5" /> Get Question
           </Button>
-        </div>
+        </motion.div>
         <ToastContainer toasts={toasts} onClose={removeToast} />
         
         {/* Gamification Effects */}
@@ -864,11 +799,9 @@ export function PlayerGamePage() {
       setTimeout(() => setShowConfetti(false), 5000);
     }
 
-    // Start countdown for PDF redirect if available
     if (session.postGameFileUrl && !hasStartedRedirectRef.current) {
       hasStartedRedirectRef.current = true;
       setRedirectCountdown(3);
-      
       const countdownInterval = setInterval(() => {
         setRedirectCountdown(prev => {
           if (prev === null || prev <= 1) {
@@ -886,106 +819,97 @@ export function PlayerGamePage() {
     return (
       <>
         <SharedConfetti active={showConfetti} duration={5000} />
-        <div
-          className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
-          style={{
-            background: won
-              ? `linear-gradient(135deg, ${teamColor}20, ${teamColor}40, ${teamColor}60)`
-              : 'linear-gradient(135deg, #94a3b8, #64748b)',
-          }}
-        >
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {won && (
-              <>
-                <div className="absolute top-10 left-10 text-6xl animate-bounce">🎉</div>
-                <div className="absolute top-20 right-20 text-5xl animate-bounce delay-100">🏆</div>
-                <div className="absolute bottom-20 left-20 text-5xl animate-bounce delay-200">✨</div>
-                <div className="absolute bottom-10 right-10 text-6xl animate-bounce delay-300">🎊</div>
-              </>
-            )}
-          </div>
+        <div className="min-h-screen game-gradient-bg flex items-center justify-center p-4 relative overflow-hidden">
+          <div className="game-grid-bg absolute inset-0 opacity-20" />
 
-          <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full text-center relative z-10">
-            <h1 className="text-5xl font-bold text-gray-900 mb-6 animate-pulse">Game Over!</h1>
-            {redirectCountdown !== null ? (
-              <div className="mb-6 bg-green-50 border-2 border-green-200 rounded-3xl p-4">
-                <p className="text-green-800 font-medium">
-                  Opening document in {redirectCountdown}...
-                </p>
-              </div>
-            ) : session.postGameFileUrl ? (
-              <div className="mb-6 bg-green-50 border-2 border-green-200 rounded-3xl p-4">
-                <p className="text-green-800 font-medium">Document opened in new tab</p>
-              </div>
-            ) : (
-              <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-3xl p-4">
-                <p className="text-blue-800 font-medium">Waiting for host to restart...</p>
-              </div>
-            )}
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
+            className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full text-center relative z-10">
 
             {tied ? (
-              <>
-                <div className="text-8xl mb-6 animate-bounce">🤝</div>
-                <h2 className="text-4xl font-bold text-gray-700 mb-6">It's a Tie!</h2>
-              </>
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring' }}
+                className="w-20 h-20 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                style={{ background: `${eandColors.oceanBlue}10` }}>
+                <Users className="w-10 h-10" style={{ color: eandColors.oceanBlue }} />
+              </motion.div>
+            ) : won ? (
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring' }}
+                className="w-20 h-20 rounded-2xl mx-auto mb-4 flex items-center justify-center game-glow-green"
+                style={{ background: `${eandColors.brightGreen}15`, border: `2px solid ${eandColors.brightGreen}40` }}>
+                <Trophy className="w-10 h-10" style={{ color: eandColors.brightGreen }} />
+              </motion.div>
+            ) : (
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring' }}
+                className="w-20 h-20 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                style={{ background: `${eandColors.grey}10` }}>
+                <Target className="w-10 h-10" style={{ color: eandColors.grey }} />
+              </motion.div>
+            )}
+
+            <h1 className="text-2xl font-extrabold mb-1" style={{ color: eandColors.oceanBlue }}>Game Over!</h1>
+
+            {tied ? (
+              <p className="text-lg font-bold mb-4" style={{ color: eandColors.oceanBlue }}>It's a Tie!</p>
             ) : won ? (
               <>
-                <div className="text-8xl mb-6 animate-bounce">🏆</div>
-                <h2 className="text-4xl font-bold mb-6" style={{ color: teamColor }}>
-                  Victory!
-                </h2>
-                <p className="text-xl text-gray-600 mb-6">Your team conquered the island!</p>
+                <p className="text-lg font-extrabold mb-1" style={{ color: teamColor }}>Victory!</p>
+                <p className="text-sm mb-4" style={{ color: eandColors.grey }}>Your team conquered the island!</p>
               </>
             ) : (
               <>
-                <div className="text-8xl mb-6">💪</div>
-                <h2 className="text-4xl font-bold text-gray-600 mb-6">Good Try!</h2>
-                <p className="text-xl text-gray-600 mb-6">Better luck next time!</p>
+                <p className="text-lg font-bold mb-1" style={{ color: eandColors.grey }}>Good Try!</p>
+                <p className="text-sm mb-4" style={{ color: eandColors.grey }}>Better luck next time!</p>
               </>
             )}
 
-            <div className="bg-gray-50 rounded-2xl p-6 mb-6">
+            {redirectCountdown !== null ? (
+              <div className="mb-4 px-4 py-2.5 rounded-xl" style={{ background: `${eandColors.brightGreen}08`, border: `1px solid ${eandColors.brightGreen}20` }}>
+                <p className="text-sm font-medium" style={{ color: eandColors.brightGreen }}>Opening document in {redirectCountdown}...</p>
+              </div>
+            ) : session.postGameFileUrl ? (
+              <div className="mb-4 px-4 py-2.5 rounded-xl" style={{ background: `${eandColors.brightGreen}08`, border: `1px solid ${eandColors.brightGreen}20` }}>
+                <p className="text-sm font-medium" style={{ color: eandColors.brightGreen }}>Document opened in new tab</p>
+              </div>
+            ) : (
+              <div className="mb-4 px-4 py-2.5 rounded-xl" style={{ background: `${eandColors.oceanBlue}05`, border: `1px solid ${eandColors.oceanBlue}10` }}>
+                <p className="text-sm font-medium" style={{ color: eandColors.oceanBlue }}>Waiting for host to restart...</p>
+              </div>
+            )}
+
+            <div className="rounded-xl p-4 mb-4" style={{ background: `${eandColors.oceanBlue}04`, border: `1px solid ${eandColors.oceanBlue}08` }}>
               <div className="grid grid-cols-2 gap-4 text-center">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Your Team</p>
-                  <p className="text-4xl font-bold text-gray-900">{myScore}</p>
+                  <p className="text-xs font-medium mb-1" style={{ color: eandColors.grey }}>Your Team</p>
+                  <p className="text-3xl font-extrabold" style={{ color: teamColor }}>{myScore}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Opponent</p>
-                  <p className="text-4xl font-bold text-gray-900">{opponentScore}</p>
+                  <p className="text-xs font-medium mb-1" style={{ color: eandColors.grey }}>Opponent</p>
+                  <p className="text-3xl font-extrabold" style={{ color: eandColors.oceanBlue }}>{opponentScore}</p>
                 </div>
               </div>
             </div>
 
             {playerData && (
-              <div className="bg-gray-50 rounded-2xl p-6">
-                <h3 className="font-semibold text-gray-700 mb-3">Your Stats</h3>
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex justify-between">
-                    <span>Territories Claimed:</span>
-                    <span className="font-bold">{playerData.territoriesClaimed}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Questions Answered:</span>
-                    <span className="font-bold">{playerData.questionsAnswered}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Correct Answers:</span>
-                    <span className="font-bold">{playerData.correctAnswers}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Accuracy:</span>
-                    <span className="font-bold">
-                      {playerData.questionsAnswered > 0
-                        ? Math.round((playerData.correctAnswers / playerData.questionsAnswered) * 100)
-                        : 0}
-                      %
-                    </span>
-                  </div>
+              <div className="rounded-xl p-4" style={{ background: `${eandColors.oceanBlue}04`, border: `1px solid ${eandColors.oceanBlue}08` }}>
+                <h3 className="text-sm font-bold mb-3" style={{ color: eandColors.oceanBlue }}>Your Stats</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Territories', value: playerData.territoriesClaimed, icon: MapPin },
+                    { label: 'Answered', value: playerData.questionsAnswered, icon: Target },
+                    { label: 'Correct', value: playerData.correctAnswers, icon: CheckCircle },
+                    { label: 'Accuracy', value: `${playerData.questionsAnswered > 0 ? Math.round((playerData.correctAnswers / playerData.questionsAnswered) * 100) : 0}%`, icon: Zap },
+                  ].map(({ label, value, icon: Icon }) => (
+                    <div key={label} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: `${eandColors.oceanBlue}04` }}>
+                      <Icon className="w-4 h-4 flex-shrink-0" style={{ color: eandColors.grey }} />
+                      <div className="text-left">
+                        <p className="text-xs" style={{ color: eandColors.grey }}>{label}</p>
+                        <p className="text-sm font-bold" style={{ color: eandColors.oceanBlue }}>{value}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
-          </div>
+          </motion.div>
           <ToastContainer toasts={toasts} onClose={removeToast} />
         </div>
       </>

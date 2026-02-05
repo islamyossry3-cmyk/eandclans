@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../components/shared/LanguageSwitcher';
-import { eandColors, eandGradients } from '../../constants/eandColors';
+import { eandColors } from '../../constants/eandColors';
+import { UserPlus } from 'lucide-react';
 
 export function SignupPage() {
   const [email, setEmail] = useState('');
@@ -41,121 +43,116 @@ export function SignupPage() {
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4 relative"
-      style={{
-        background: eandGradients.hero
-      }}
-    >
-      {/* Language Switcher */}
-      <div className="absolute top-4 right-4">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden game-gradient-bg">
+      <div className="absolute inset-0 game-grid-bg opacity-30" />
+
+      <div className="absolute top-4 right-4 z-10">
         <LanguageSwitcher />
       </div>
 
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 border-2 border-gray-100">
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-2">
-              <img
-                src="https://www.eand.com.eg/portal/images/logo/etisalat_logo.svg"
-                alt="e& logo"
-                className="h-16"
-                style={{ maxHeight: '64px' }}
-              />
-            </div>
-            <p style={{ color: eandColors.oceanBlue, opacity: 0.7 }}>{t('app.subtitle')}</p>
-          </div>
-
-          <h2
-            className="text-2xl font-bold mb-6 text-center pb-3 border-b-2"
-            style={{ color: eandColors.oceanBlue, borderColor: eandColors.red }}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+        className="w-full max-w-md relative z-10"
+      >
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          <div
+            className="px-8 pt-8 pb-6 text-center relative"
+            style={{ background: `linear-gradient(135deg, ${eandColors.brightGreen} 0%, #2d8f45 100%)` }}
           >
-            {t('auth.createAccount')}
-          </h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label={t('auth.organizationName')}
-              type="text"
-              value={organizationName}
-              onChange={(e) => setOrganizationName(e.target.value)}
-              error={errors.organizationName}
-              placeholder="e& Egypt"
-              autoComplete="organization"
-            />
-
-            <Input
-              label={t('auth.email')}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              error={errors.email}
-              placeholder="admin@eand.com.eg"
-              autoComplete="email"
-            />
-
-            <Input
-              label={t('auth.password')}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              error={errors.password}
-              placeholder="••••••••"
-              autoComplete="new-password"
-            />
-
-            <Input
-              label={t('auth.confirmPassword')}
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              error={errors.confirmPassword}
-              placeholder="••••••••"
-              autoComplete="new-password"
-            />
-
-            {error && (
-              <div
-                className="border-2 px-4 py-3 rounded-xl text-sm font-semibold"
-                style={{
-                  backgroundColor: `${eandColors.red}10`,
-                  borderColor: eandColors.red,
-                  color: eandColors.red
-                }}
-              >
-                {error}
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              isLoading={isLoading}
-              className="w-full"
+            <div className="absolute inset-0 game-grid-bg opacity-10" />
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+              className="relative z-10"
             >
-              {t('auth.createAccount')}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p style={{ color: eandColors.oceanBlue, opacity: 0.7 }}>
-              {t('auth.alreadyHaveAccount')}{' '}
-              <button
-                onClick={() => navigate('/login')}
-                className="font-bold transition-colors hover:opacity-80"
-                style={{ color: eandColors.brightGreen }}
+              <div
+                className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', border: '2px solid rgba(255,255,255,0.3)' }}
               >
-                {t('auth.login')}
-              </button>
-            </p>
+                <UserPlus className="w-8 h-8 text-white" />
+              </div>
+            </motion.div>
+            <h1 className="text-xl font-bold text-white mb-1 relative z-10">{t('auth.createAccount')}</h1>
+            <p className="text-sm text-white/70 relative z-10">{t('app.subtitle')}</p>
           </div>
 
-          <div className="mt-8 pt-6 border-t text-center" style={{ borderColor: eandColors.mediumGrey }}>
-            <p className="text-sm" style={{ color: eandColors.oceanBlue, opacity: 0.6 }}>{t('app.tagline')}</p>
+          <div className="p-8">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input
+                label={t('auth.organizationName')}
+                type="text"
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
+                error={errors.organizationName}
+                placeholder="e& Egypt"
+                autoComplete="organization"
+              />
+              <Input
+                label={t('auth.email')}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                error={errors.email}
+                placeholder="admin@eand.com.eg"
+                autoComplete="email"
+              />
+              <Input
+                label={t('auth.password')}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                error={errors.password}
+                placeholder="••••••••"
+                autoComplete="new-password"
+              />
+              <Input
+                label={t('auth.confirmPassword')}
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                error={errors.confirmPassword}
+                placeholder="••••••••"
+                autoComplete="new-password"
+              />
+
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="px-4 py-3 rounded-xl text-sm font-medium"
+                  style={{ backgroundColor: `${eandColors.red}08`, border: `1px solid ${eandColors.red}20`, color: eandColors.red }}
+                >
+                  {error}
+                </motion.div>
+              )}
+
+              <Button type="submit" variant="success" size="lg" isLoading={isLoading} className="w-full">
+                {t('auth.createAccount')}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm" style={{ color: eandColors.grey }}>
+                {t('auth.alreadyHaveAccount')}{' '}
+                <button
+                  onClick={() => navigate('/login')}
+                  className="font-bold transition-colors hover:opacity-80"
+                  style={{ color: eandColors.red }}
+                >
+                  {t('auth.login')}
+                </button>
+              </p>
+            </div>
+
+            <div className="mt-6 pt-5 border-t text-center" style={{ borderColor: `${eandColors.oceanBlue}08` }}>
+              <img src="https://www.eand.com.eg/portal/images/logo/etisalat_logo.svg" alt="e& logo" className="h-8 mx-auto opacity-40" />
+            </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

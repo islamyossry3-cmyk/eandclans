@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 import { useSessionStore } from '../../stores/sessionStore';
 import { Button } from '../../components/shared/Button';
 import { SessionCard } from '../../components/admin/SessionCard';
 import { HelpModal } from '../../components/shared/HelpModal';
-import { LogOut, Plus, Search, Zap, HelpCircle, FolderOpen, Shield, Trophy, Users, Calendar, ChevronRight } from 'lucide-react';
+import { Loading } from '../../components/shared/Loading';
+import { LogOut, Plus, Search, Zap, HelpCircle, FolderOpen, Shield, Trophy, Users, Calendar, ChevronRight, Gamepad2, Menu, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Session } from '../../types/session';
 import { eandColors } from '../../constants/eandColors';
@@ -20,6 +22,7 @@ export function DashboardPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [tournamentsLoading, setTournamentsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'sessions' | 'tournaments'>('sessions');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -93,286 +96,241 @@ export function DashboardPage() {
     completed: sessions.filter((s: Session) => s.status === 'completed').length,
   };
 
+  const statItems = [
+    { label: 'Total', value: stats.total, color: eandColors.red, icon: Gamepad2 },
+    { label: 'Draft', value: stats.draft, color: eandColors.grey, icon: Edit },
+    { label: 'Ready', value: stats.ready, color: eandColors.oceanBlue, icon: Zap },
+    { label: 'Live', value: stats.live, color: eandColors.brightGreen, icon: Play },
+    { label: 'Done', value: stats.completed, color: eandColors.darkGreen, icon: Trophy },
+  ];
+
+  const Edit = () => <span />;
+  const Play = () => <span />;
+
   return (
-    <div className="min-h-screen" style={{ backgroundColor: eandColors.lightGrey }}>
-      <div className="bg-white shadow-lg border-b-4" style={{ borderColor: eandColors.red }}>
-        <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="min-h-screen bg-gray-50 game-dots-bg">
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b" style={{ borderColor: `${eandColors.oceanBlue}08` }}>
+        <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <img
-                src="https://www.eand.com.eg/portal/images/logo/etisalat_logo.svg"
-                alt="e& logo"
-                className="h-12"
-                style={{ maxHeight: '48px' }}
-              />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${eandColors.red} 0%, #c00700 100%)` }}>
+                <Gamepad2 className="w-5 h-5 text-white" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-lg font-bold leading-tight" style={{ color: eandColors.oceanBlue }}>Game Control</h1>
+                <p className="text-xs" style={{ color: eandColors.grey }}>Dashboard</p>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="primary"
-                onClick={handleCreateNew}
-                className="flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                New Session
+
+            <div className="hidden lg:flex items-center gap-2">
+              <Button variant="primary" size="sm" onClick={handleCreateNew}>
+                <Plus className="w-4 h-4" /> New Session
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => navigate('/tournament/new')}
-                className="flex items-center gap-2"
-                style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.mauve} 100%)`, border: 'none', color: 'white' }}
-              >
-                <Trophy className="w-4 h-4" />
-                New Tournament
+              <Button variant="secondary" size="sm" onClick={() => navigate('/tournament/new')}>
+                <Trophy className="w-4 h-4" /> Tournament
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => navigate('/assets')}
-                className="flex items-center gap-2"
-              >
-                <FolderOpen className="w-4 h-4" />
-                Assets
+              <Button variant="ghost" size="sm" onClick={() => navigate('/assets')}>
+                <FolderOpen className="w-4 h-4" /> Assets
               </Button>
               {user?.isSuperAdmin && (
-                <Button
-                  variant="secondary"
-                  onClick={() => navigate('/super-admin')}
-                  className="flex items-center gap-2"
-                  style={{
-                    background: 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)',
-                    border: 'none',
-                    color: 'white'
-                  }}
-                >
-                  <Shield className="w-4 h-4" />
-                  Super Admin
+                <Button variant="ghost" size="sm" onClick={() => navigate('/super-admin')}
+                  style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)', color: 'white', border: 'none' }}>
+                  <Shield className="w-4 h-4" /> Admin
                 </Button>
               )}
-              <button
-                onClick={() => setShowHelp(true)}
-                className="p-2 hover:opacity-80 transition-opacity"
-                style={{ color: eandColors.grey }}
-                title="Help"
-              >
+              <button onClick={() => setShowHelp(true)} className="p-2 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: eandColors.grey }}>
                 <HelpCircle className="w-5 h-5" />
               </button>
-              <Button
-                variant="secondary"
-                onClick={handleSignOut}
-                className="flex items-center gap-2"
-                style={{
-                  backgroundColor: 'white',
-                  border: `2px solid ${eandColors.mediumGrey}`,
-                  color: eandColors.oceanBlue
-                }}
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </Button>
+              <button onClick={handleSignOut} className="p-2 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: eandColors.grey }}>
+                <LogOut className="w-5 h-5" />
+              </button>
             </div>
+
+            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors">
+              {mobileMenuOpen ? <X className="w-6 h-6" style={{ color: eandColors.oceanBlue }} /> : <Menu className="w-6 h-6" style={{ color: eandColors.oceanBlue }} />}
+            </button>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Tab Navigation */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('sessions')}
-            className={`px-6 py-3 rounded-lg font-bold uppercase text-sm tracking-wider transition-all shadow-md hover:shadow-lg flex items-center gap-2`}
-            style={
-              activeTab === 'sessions'
-                ? { background: `linear-gradient(135deg, ${eandColors.red} 0%, #c00700 100%)`, color: 'white' }
-                : { background: 'white', color: eandColors.oceanBlue, border: `2px solid ${eandColors.mediumGrey}` }
-            }
-          >
-            <Zap className="w-4 h-4" />
-            Sessions ({sessions.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('tournaments')}
-            className={`px-6 py-3 rounded-lg font-bold uppercase text-sm tracking-wider transition-all shadow-md hover:shadow-lg flex items-center gap-2`}
-            style={
-              activeTab === 'tournaments'
-                ? { background: `linear-gradient(135deg, ${eandColors.mauve} 0%, ${eandColors.oceanBlue} 100%)`, color: 'white' }
-                : { background: 'white', color: eandColors.oceanBlue, border: `2px solid ${eandColors.mediumGrey}` }
-            }
-          >
-            <Trophy className="w-4 h-4" />
-            Tournaments ({tournaments.length})
-          </button>
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="lg:hidden overflow-hidden border-t" style={{ borderColor: `${eandColors.oceanBlue}08` }}
+            >
+              <div className="p-4 grid grid-cols-2 gap-2">
+                <Button variant="primary" size="sm" onClick={() => { handleCreateNew(); setMobileMenuOpen(false); }} className="w-full">
+                  <Plus className="w-4 h-4" /> Session
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => { navigate('/tournament/new'); setMobileMenuOpen(false); }} className="w-full">
+                  <Trophy className="w-4 h-4" /> Tournament
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => { navigate('/assets'); setMobileMenuOpen(false); }} className="w-full">
+                  <FolderOpen className="w-4 h-4" /> Assets
+                </Button>
+                {user?.isSuperAdmin && (
+                  <Button variant="ghost" size="sm" onClick={() => { navigate('/super-admin'); setMobileMenuOpen(false); }} className="w-full">
+                    <Shield className="w-4 h-4" /> Admin
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => { setShowHelp(true); setMobileMenuOpen(false); }} className="w-full">
+                  <HelpCircle className="w-4 h-4" /> Help
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => { handleSignOut(); setMobileMenuOpen(false); }} className="w-full">
+                  <LogOut className="w-4 h-4" /> Sign Out
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="flex gap-1 p-1 bg-white rounded-xl mb-6 shadow-sm" style={{ border: `1px solid ${eandColors.oceanBlue}08` }}>
+          {[
+            { key: 'sessions' as const, label: `Sessions (${sessions.length})`, icon: Zap, gradient: `linear-gradient(135deg, ${eandColors.red} 0%, #c00700 100%)` },
+            { key: 'tournaments' as const, label: `Tournaments (${tournaments.length})`, icon: Trophy, gradient: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.mauve} 100%)` },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all"
+              style={activeTab === tab.key
+                ? { background: tab.gradient, color: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }
+                : { color: eandColors.grey }
+              }
+            >
+              <tab.icon className="w-4 h-4" /> <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.key === 'sessions' ? `(${sessions.length})` : `(${tournaments.length})`}</span>
+            </button>
+          ))}
         </div>
 
         {activeTab === 'sessions' && (
-        <>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-          <div className="rounded-lg shadow-md p-6 bg-white border-2" style={{ borderColor: eandColors.red }}>
-            <div className="text-4xl font-bold" style={{ color: eandColors.red }}>{stats.total}</div>
-            <div className="text-xs font-bold uppercase tracking-wider mt-1" style={{ color: eandColors.oceanBlue, opacity: 0.7 }}>Total Sessions</div>
-          </div>
-          <div className="rounded-lg shadow-md p-6 bg-white border-2" style={{ borderColor: eandColors.grey }}>
-            <div className="text-4xl font-bold" style={{ color: eandColors.oceanBlue }}>{stats.draft}</div>
-            <div className="text-xs font-bold uppercase tracking-wider mt-1" style={{ color: eandColors.oceanBlue, opacity: 0.7 }}>Draft</div>
-          </div>
-          <div className="rounded-lg shadow-md p-6 bg-white border-2" style={{ borderColor: eandColors.oceanBlue }}>
-            <div className="text-4xl font-bold" style={{ color: eandColors.oceanBlue }}>{stats.ready}</div>
-            <div className="text-xs font-bold uppercase tracking-wider mt-1" style={{ color: eandColors.oceanBlue, opacity: 0.7 }}>Ready</div>
-          </div>
-          <div className="rounded-lg shadow-md p-6 bg-white border-2" style={{ borderColor: eandColors.brightGreen }}>
-            <div className="text-4xl font-bold" style={{ color: eandColors.brightGreen }}>{stats.live}</div>
-            <div className="text-xs font-bold uppercase tracking-wider mt-1" style={{ color: eandColors.oceanBlue, opacity: 0.7 }}>Live</div>
-          </div>
-          <div className="rounded-lg shadow-md p-6 bg-white border-2" style={{ borderColor: eandColors.brightGreen }}>
-            <div className="text-4xl font-bold" style={{ color: eandColors.brightGreen }}>{stats.completed}</div>
-            <div className="text-xs font-bold uppercase tracking-wider mt-1" style={{ color: eandColors.oceanBlue, opacity: 0.7 }}>Completed</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border-2 shadow-md p-6 mb-6" style={{ borderColor: eandColors.mediumGrey }}>
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="flex gap-2 flex-wrap">
-              {(['all', 'draft', 'ready', 'live', 'completed'] as const).map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setFilter(status)}
-                  className="px-5 py-2 rounded-lg font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:shadow-lg"
-                  style={
-                    filter === status
-                      ? {
-                          background: `linear-gradient(135deg, ${eandColors.red} 0%, #c00700 100%)`,
-                          color: 'white',
-                          border: 'none'
-                        }
-                      : {
-                          background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, #0f0c35 100%)`,
-                          color: 'white',
-                          border: 'none'
-                        }
-                  }
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-6">
+              {statItems.map((item, i) => (
+                <motion.div
+                  key={item.label}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="game-stat-card text-center"
                 >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </button>
+                  <div className="text-2xl sm:text-3xl font-extrabold" style={{ color: item.color }}>{item.value}</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider mt-0.5" style={{ color: eandColors.grey }}>{item.label}</div>
+                </motion.div>
               ))}
             </div>
 
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: eandColors.grey }} />
-              <input
-                type="text"
-                placeholder="Search sessions..."
-                value={searchQuery}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border-2 rounded-lg bg-white focus:outline-none focus:ring-2"
-                style={{
-                  borderColor: eandColors.mediumGrey,
-                  color: eandColors.oceanBlue
-                }}
-                onFocus={(e: React.FocusEvent<HTMLInputElement>) => {
-                  e.target.style.borderColor = eandColors.red;
-                  e.target.style.boxShadow = `0 0 0 3px ${eandColors.red}20`;
-                }}
-                onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
-                  e.target.style.borderColor = eandColors.mediumGrey;
-                  e.target.style.boxShadow = 'none';
-                }}
-              />
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <div className="flex gap-1.5 flex-wrap flex-1">
+                {(['all', 'draft', 'ready', 'live', 'completed'] as const).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setFilter(status)}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all mobile-touch"
+                    style={filter === status
+                      ? { background: `linear-gradient(135deg, ${eandColors.red} 0%, #c00700 100%)`, color: 'white', boxShadow: '0 2px 8px rgba(224,8,0,0.2)' }
+                      : { background: 'white', color: eandColors.oceanBlue, border: `1px solid ${eandColors.oceanBlue}10` }
+                    }
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <div className="relative w-full sm:w-56">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: eandColors.grey }} />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 transition-all"
+                  style={{ border: `1px solid ${eandColors.oceanBlue}10`, color: eandColors.oceanBlue, focusRing: eandColors.brightGreen } as any}
+                />
+              </div>
             </div>
-          </div>
-        </div>
 
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin h-12 w-12 border-4 rounded-full" style={{
-              borderColor: `${eandColors.red}30`,
-              borderTopColor: eandColors.red
-            }} />
-          </div>
-        ) : filteredSessions.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-md p-12 text-center border-2" style={{ borderColor: eandColors.mediumGrey }}>
-            <p className="text-lg mb-4" style={{ color: eandColors.oceanBlue, opacity: 0.7 }}>
-              {searchQuery ? 'No sessions found matching your search.' : 'No sessions yet. Create your first session to get started!'}
-            </p>
-            {!searchQuery && (
-              <Button
-                variant="primary"
-                onClick={handleCreateNew}
-                className="flex items-center gap-2 mx-auto"
-              >
-                <Plus className="w-4 h-4" />
-                Create Your First Session
-              </Button>
+            {isLoading ? (
+              <Loading />
+            ) : filteredSessions.length === 0 ? (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="game-card p-12 text-center">
+                <Gamepad2 className="w-16 h-16 mx-auto mb-4" style={{ color: `${eandColors.oceanBlue}20` }} />
+                <p className="text-lg font-medium mb-1" style={{ color: eandColors.oceanBlue }}>
+                  {searchQuery ? 'No sessions found' : 'No sessions yet'}
+                </p>
+                <p className="text-sm mb-6" style={{ color: eandColors.grey }}>
+                  {searchQuery ? 'Try a different search term' : 'Create your first game session to get started'}
+                </p>
+                {!searchQuery && (
+                  <Button variant="primary" onClick={handleCreateNew}>
+                    <Plus className="w-4 h-4" /> Create Session
+                  </Button>
+                )}
+              </motion.div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredSessions.map((session: Session, i: number) => (
+                  <motion.div
+                    key={session.id}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                  >
+                    <SessionCard
+                      session={session}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onDuplicate={handleDuplicate}
+                      onLaunch={handleLaunch}
+                      onViewResults={handleViewResults}
+                      onViewDashboard={handleViewDashboard}
+                    />
+                  </motion.div>
+                ))}
+              </div>
             )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSessions.map((session: Session) => (
-              <SessionCard
-                key={session.id}
-                session={session}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onDuplicate={handleDuplicate}
-                onLaunch={handleLaunch}
-                onViewResults={handleViewResults}
-                onViewDashboard={handleViewDashboard}
-              />
-            ))}
-          </div>
-        )}
-        </>
+          </motion.div>
         )}
 
         {activeTab === 'tournaments' && (
-          <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
             {tournamentsLoading ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin h-12 w-12 border-4 rounded-full" style={{
-                  borderColor: `${eandColors.mauve}30`,
-                  borderTopColor: eandColors.mauve
-                }} />
-              </div>
+              <Loading />
             ) : tournaments.length === 0 ? (
-              <div className="bg-white rounded-2xl shadow-md p-12 text-center border-2" style={{ borderColor: eandColors.mediumGrey }}>
-                <Trophy className="w-16 h-16 mx-auto mb-4" style={{ color: eandColors.mauve }} />
-                <p className="text-lg mb-4" style={{ color: eandColors.oceanBlue, opacity: 0.7 }}>
-                  No tournaments yet. Create your first tournament to get started!
-                </p>
-                <Button
-                  variant="secondary"
-                  onClick={() => navigate('/tournament/new')}
-                  className="flex items-center gap-2 mx-auto"
-                  style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.mauve} 100%)`, border: 'none', color: 'white' }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Your First Tournament
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="game-card p-12 text-center">
+                <Trophy className="w-16 h-16 mx-auto mb-4" style={{ color: `${eandColors.oceanBlue}20` }} />
+                <p className="text-lg font-medium mb-1" style={{ color: eandColors.oceanBlue }}>No tournaments yet</p>
+                <p className="text-sm mb-6" style={{ color: eandColors.grey }}>Create your first tournament to host competitive events</p>
+                <Button variant="secondary" onClick={() => navigate('/tournament/new')}>
+                  <Plus className="w-4 h-4" /> Create Tournament
                 </Button>
-              </div>
+              </motion.div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {tournaments.map((tournament: Tournament) => (
-                  <div
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tournaments.map((tournament: Tournament, i: number) => (
+                  <motion.div
                     key={tournament.id}
-                    className="bg-white rounded-xl shadow-md border-2 overflow-hidden hover:shadow-xl transition-all cursor-pointer animate-fade-in"
-                    style={{ borderColor: eandColors.mediumGrey }}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="game-card cursor-pointer group"
                     onClick={() => navigate(`/admin/tournaments/${tournament.id}`)}
                   >
-                    <div
-                      className="p-4"
-                      style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.mauve} 100%)` }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Trophy className="w-5 h-5 text-white" />
+                    <div className="p-4 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.mauve} 100%)` }}>
+                      <div className="absolute inset-0 game-grid-bg opacity-10" />
+                      <div className="flex items-center justify-between relative z-10">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Trophy className="w-5 h-5 text-white flex-shrink-0" />
                           <h3 className="font-bold text-white truncate">{tournament.name}</h3>
                         </div>
-                        <span
-                          className="px-2 py-1 rounded-full text-xs font-bold uppercase"
-                          style={{
-                            backgroundColor: tournament.status === 'active' ? eandColors.brightGreen : 
-                                           tournament.status === 'completed' ? eandColors.oceanBlue : 
-                                           tournament.status === 'paused' ? eandColors.sandRed : eandColors.grey,
-                            color: 'white'
-                          }}
-                        >
+                        <span className="game-badge flex-shrink-0 ml-2" style={{
+                          backgroundColor: tournament.status === 'active' ? eandColors.brightGreen : tournament.status === 'completed' ? eandColors.oceanBlue : eandColors.grey,
+                          color: 'white'
+                        }}>
                           {tournament.status}
                         </span>
                       </div>
@@ -380,34 +338,24 @@ export function DashboardPage() {
                     <div className="p-4">
                       <div className="flex items-center gap-4 text-sm mb-3">
                         <div className="flex items-center gap-1" style={{ color: eandColors.grey }}>
-                          <Users className="w-4 h-4" />
-                          <span>{tournament.maxPlayersPerSession} max</span>
+                          <Users className="w-4 h-4" /> <span>{tournament.maxPlayersPerSession} max</span>
                         </div>
                         <div className="flex items-center gap-1" style={{ color: eandColors.grey }}>
-                          <Calendar className="w-4 h-4" />
-                          <span>{Math.round((new Date(tournament.endDate).getTime() - new Date(tournament.startDate).getTime()) / (tournament.sessionDurationSeconds * 1000))} sessions</span>
+                          <Calendar className="w-4 h-4" /> <span>{new Date(tournament.startDate).toLocaleDateString()}</span>
                         </div>
                       </div>
                       {tournament.description && (
-                        <p className="text-sm mb-3 line-clamp-2" style={{ color: eandColors.oceanBlue, opacity: 0.7 }}>
-                          {tournament.description}
-                        </p>
+                        <p className="text-sm mb-3 line-clamp-2" style={{ color: eandColors.grey }}>{tournament.description}</p>
                       )}
-                      <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: eandColors.lightGrey }}>
-                        <span className="text-xs" style={{ color: eandColors.grey }}>
-                          {new Date(tournament.startDate).toLocaleDateString()}
-                        </span>
-                        <div className="flex items-center gap-1 text-sm font-medium" style={{ color: eandColors.oceanBlue }}>
-                          View Details
-                          <ChevronRight className="w-4 h-4" />
-                        </div>
+                      <div className="flex items-center justify-end gap-1 text-sm font-medium group-hover:gap-2 transition-all" style={{ color: eandColors.red }}>
+                        View Details <ChevronRight className="w-4 h-4" />
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}
-          </>
+          </motion.div>
         )}
       </div>
 

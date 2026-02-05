@@ -1,8 +1,10 @@
 import React from 'react';
+import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 import { eandColors } from '../../constants/eandColors';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   children: React.ReactNode;
@@ -18,40 +20,63 @@ export function Button({
   style,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'font-bold uppercase tracking-wider rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-xl transform hover:-translate-y-1 hover:scale-[1.02] active:translate-y-0 active:scale-100';
+  const baseStyles = 'relative font-bold tracking-wide rounded-xl transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 mobile-touch';
 
-  const variantStyles = {
+  const variantStyles: Record<string, React.CSSProperties> = {
     primary: {
       background: `linear-gradient(135deg, ${eandColors.red} 0%, #c00700 100%)`,
       color: 'white',
-      border: 'none'
+      border: 'none',
+      boxShadow: '0 4px 14px rgba(224, 8, 0, 0.25)',
     },
     secondary: {
       background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, #0f0c35 100%)`,
       color: 'white',
-      border: 'none'
+      border: 'none',
+      boxShadow: '0 4px 14px rgba(24, 17, 75, 0.25)',
     },
     danger: {
-      background: `linear-gradient(135deg, ${eandColors.red} 0%, #c00700 100%)`,
+      background: `linear-gradient(135deg, #dc2626 0%, #991b1b 100%)`,
       color: 'white',
-      border: 'none'
+      border: 'none',
+      boxShadow: '0 4px 14px rgba(220, 38, 38, 0.25)',
+    },
+    ghost: {
+      background: 'transparent',
+      color: eandColors.oceanBlue,
+      border: `2px solid ${eandColors.oceanBlue}15`,
+    },
+    success: {
+      background: `linear-gradient(135deg, ${eandColors.brightGreen} 0%, #35a050 100%)`,
+      color: 'white',
+      border: 'none',
+      boxShadow: '0 4px 14px rgba(71, 203, 108, 0.25)',
     },
   };
 
-  const sizes = {
+  const sizes: Record<string, string> = {
     sm: 'px-4 py-2 text-xs',
-    md: 'px-6 py-3 text-sm',
-    lg: 'px-8 py-4 text-base',
+    md: 'px-5 py-2.5 text-sm',
+    lg: 'px-7 py-3.5 text-base',
   };
 
+  const isDisabled = disabled || isLoading;
+
   return (
-    <button
+    <motion.button
+      whileTap={isDisabled ? undefined : { scale: 0.97 }}
+      whileHover={isDisabled ? undefined : { scale: 1.02, y: -1 }}
       className={`${baseStyles} ${sizes[size]} ${className}`}
       style={{ ...variantStyles[variant], ...style }}
-      disabled={disabled || isLoading}
-      {...props}
+      disabled={isDisabled}
+      {...(props as any)}
     >
-      {isLoading ? <span className="inline-block animate-spin">⌛</span> : children}
-    </button>
+      {isLoading ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="opacity-80">Loading...</span>
+        </>
+      ) : children}
+    </motion.button>
   );
 }

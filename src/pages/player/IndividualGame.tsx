@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Camera, Upload, Download, Trophy, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Camera, Upload, Download, Trophy, ArrowLeft, Volume2, VolumeX, Zap, Target, CheckCircle, XCircle, Clock } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
@@ -9,6 +10,7 @@ import { Loading } from '../../components/shared/Loading';
 import { IndividualResultsHexGrid } from '../../components/game/IndividualResultsHexGrid';
 import { sessionService } from '../../services/sessionService';
 import { getTheme } from '../../constants/themes';
+import { eandColors } from '../../constants/eandColors';
 import { supabase } from '../../lib/supabase';
 import type { Session, Question } from '../../types/session';
 
@@ -442,64 +444,44 @@ export function IndividualGamePage() {
 
   if (screen === 'welcome') {
     return (
-      <div className="relative min-h-screen overflow-hidden flex items-center justify-center p-4">
-        {theme.backgroundImage && (
-          <>
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `url(${theme.backgroundImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                filter: 'blur(40px) brightness(0.7)',
-                transform: 'scale(1.1)',
-              }}
-            />
-            <div
-              className="absolute inset-0"
-              style={{
-                background: theme.gradients.lobby,
-                opacity: 0.85,
-              }}
-            />
-          </>
-        )}
-
-        <div className="relative z-10 w-full">
-          <div className="max-w-2xl mx-auto">
+      <div className="relative min-h-screen overflow-hidden flex items-center justify-center p-4 game-gradient-bg">
+        <div className="game-grid-bg absolute inset-0 opacity-20" />
+        <div className="relative z-10 w-full max-w-md mx-auto">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="mb-4">
-              <Button onClick={() => navigate('/join')} variant="secondary" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Join
+              <Button onClick={() => navigate('/join')} variant="ghost" size="sm">
+                <ArrowLeft className="w-4 h-4" /> Back
               </Button>
             </div>
-            <div className="bg-gradient-to-br from-stone-800 via-stone-900 to-gray-900 rounded-[2rem] border-4 border-amber-600 shadow-2xl p-8">
-              <h1 className="text-5xl font-bold text-amber-300 mb-4 text-center drop-shadow-lg">
-                {session.name}
-              </h1>
-              <p className="text-amber-100 text-center mb-8 text-lg">
-                {session.description || 'Answer Questions. Conquer Your Island. Claim Your Glory.'}
-              </p>
-
-              <div className="bg-stone-900/50 rounded-3xl p-6 mb-8 border-2 border-amber-700/30">
-                <h2 className="text-xl font-bold text-amber-200 mb-4 text-center">Game Info</h2>
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div className="bg-stone-800/50 rounded-2xl p-4">
-                    <div className="text-3xl font-bold text-amber-400">{session.questions.length}</div>
-                    <div className="text-sm text-amber-200">Questions</div>
+            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+              <div className="px-6 pt-8 pb-6 text-center" style={{ background: `linear-gradient(135deg, ${eandColors.red} 0%, #c00700 100%)` }}>
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring' }}
+                  className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.3)' }}>
+                  <Target className="w-8 h-8 text-white" />
+                </motion.div>
+                <h1 className="text-2xl font-extrabold text-white mb-1">{session.name}</h1>
+                <p className="text-sm text-white/70">
+                  {session.description || 'Answer Questions. Conquer Your Island. Claim Your Glory.'}
+                </p>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="rounded-xl p-4 text-center" style={{ background: `${eandColors.oceanBlue}05`, border: `1px solid ${eandColors.oceanBlue}08` }}>
+                    <p className="text-2xl font-extrabold" style={{ color: eandColors.red }}>{session.questions.length}</p>
+                    <p className="text-xs font-medium" style={{ color: eandColors.grey }}>Questions</p>
                   </div>
-                  <div className="bg-stone-800/50 rounded-2xl p-4">
-                    <div className="text-3xl font-bold text-amber-400">{session.config.timePerQuestion}s</div>
-                    <div className="text-sm text-amber-200">Per Question</div>
+                  <div className="rounded-xl p-4 text-center" style={{ background: `${eandColors.oceanBlue}05`, border: `1px solid ${eandColors.oceanBlue}08` }}>
+                    <p className="text-2xl font-extrabold" style={{ color: eandColors.red }}>{session.config.timePerQuestion}s</p>
+                    <p className="text-xs font-medium" style={{ color: eandColors.grey }}>Per Question</p>
                   </div>
                 </div>
+                <Button onClick={() => setScreen('registration')} size="lg" className="w-full">
+                  <Zap className="w-5 h-5" /> Enter the Challenge
+                </Button>
               </div>
-
-              <Button onClick={() => setScreen('registration')} size="lg" className="w-full">
-                Enter the Challenge
-              </Button>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -513,36 +495,15 @@ export function IndividualGamePage() {
     ];
 
     return (
-      <div className="relative min-h-screen overflow-hidden flex items-center justify-center p-4">
-        {theme.backgroundImage && (
-          <>
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `url(${theme.backgroundImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                filter: 'blur(40px) brightness(0.7)',
-                transform: 'scale(1.1)',
-              }}
-            />
-            <div
-              className="absolute inset-0"
-              style={{
-                background: theme.gradients.lobby,
-                opacity: 0.85,
-              }}
-            />
-          </>
-        )}
-
-        <div className="relative z-10 max-w-md w-full">
-          <div className="bg-gradient-to-br from-stone-800 via-stone-900 to-gray-900 rounded-[2rem] border-4 border-amber-600 shadow-2xl p-8">
-            <h2 className="text-3xl font-bold text-amber-300 mb-6 text-center">
-              Register to Play
-            </h2>
-
-            <div className="space-y-4">
+      <div className="relative min-h-screen overflow-hidden flex items-center justify-center p-4 game-gradient-bg">
+        <div className="game-grid-bg absolute inset-0 opacity-20" />
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 max-w-md w-full">
+          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-6 pt-6 pb-4 text-center" style={{ background: `linear-gradient(135deg, ${eandColors.brightGreen} 0%, ${eandColors.darkGreen} 100%)` }}>
+              <h2 className="text-xl font-extrabold text-white">Register to Play</h2>
+            </div>
+            <div className="p-6 space-y-4">
               {registrationFields.map(field => (
                 <Input
                   key={field.id}
@@ -555,19 +516,17 @@ export function IndividualGamePage() {
                   required={field.required}
                 />
               ))}
-
               <div className="flex gap-3 pt-2">
-                <Button onClick={() => setScreen('welcome')} variant="secondary" className="flex-1">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Go Back
+                <Button onClick={() => setScreen('welcome')} variant="ghost" className="flex-1">
+                  <ArrowLeft className="w-4 h-4" /> Back
                 </Button>
                 <Button onClick={handleStartGame} className="flex-1">
-                  Begin Quest
+                  <Zap className="w-4 h-4" /> Begin Quest
                 </Button>
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -579,26 +538,18 @@ export function IndividualGamePage() {
     const playerName = fieldValues['field1'] || fieldValues[registrationFields[0]?.id] || 'Player';
 
     return (
-      <div className="relative min-h-screen overflow-hidden flex items-center justify-center">
-        {theme.backgroundImage && (
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url(${theme.backgroundImage})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'blur(20px) brightness(0.5)',
-            }}
-          />
-        )}
-
+      <div className="relative min-h-screen overflow-hidden flex items-center justify-center game-gradient-bg">
+        <div className="game-grid-bg absolute inset-0 opacity-20" />
         <div className="relative z-10 text-center">
-          <h2 className="text-4xl font-bold text-amber-200 mb-8">
+          <motion.h2 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
+            className="text-2xl sm:text-3xl font-extrabold text-white mb-8">
             Prepare yourself, {playerName}!
-          </h2>
-          <div className="text-9xl font-bold text-amber-400 animate-pulse drop-shadow-2xl">
+          </motion.h2>
+          <motion.div key={countdown} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 200 }}
+            className="text-8xl sm:text-9xl font-extrabold game-text-glow" style={{ color: eandColors.red }}>
             {countdown > 0 ? countdown : 'GO!'}
-          </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -609,105 +560,89 @@ export function IndividualGamePage() {
     const progress = ((currentQuestionIndex + 1) / session.questions.length) * 100;
 
     return (
-      <div className="relative min-h-screen overflow-hidden">
-        {theme.backgroundImage && (
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url(${theme.backgroundImage})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'blur(20px) brightness(0.6)',
-            }}
-          />
-        )}
-
+      <div className="relative min-h-screen overflow-hidden game-gradient-bg">
+        <div className="game-grid-bg absolute inset-0 opacity-10" />
         <div className="relative z-10 min-h-screen flex flex-col p-4">
-          <div className="bg-stone-900/90 backdrop-blur-sm rounded-3xl shadow-lg p-4 mb-4">
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl p-3 mb-4 game-surface">
             <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center gap-4">
-                <div className="bg-amber-600 text-white px-4 py-2 rounded-2xl font-bold">
-                  Score: {score}
+              <div className="flex items-center gap-3">
+                <div className="px-3 py-1.5 rounded-xl text-white font-bold text-sm"
+                  style={{ background: `linear-gradient(135deg, ${eandColors.red}, #c00700)` }}>
+                  {score} pts
                 </div>
-                <div className="text-amber-200">
-                  Question {currentQuestionIndex + 1} of {session.questions.length}
-                </div>
-                <button
-                  onClick={() => setIsMuted(!isMuted)}
-                  className="p-2 rounded-full bg-stone-700 hover:bg-stone-600 transition-colors"
-                  title={isMuted ? 'Unmute music' : 'Mute music'}
-                >
-                  {isMuted ? (
-                    <VolumeX className="w-5 h-5 text-amber-200" />
-                  ) : (
-                    <Volume2 className="w-5 h-5 text-amber-200" />
-                  )}
+                <span className="text-xs text-white/60">Q{currentQuestionIndex + 1}/{session.questions.length}</span>
+                <button onClick={() => setIsMuted(!isMuted)}
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors mobile-touch">
+                  {isMuted ? <VolumeX className="w-4 h-4 text-white/60" /> : <Volume2 className="w-4 h-4 text-white/60" />}
                 </button>
               </div>
-
-              <div className={`text-3xl font-bold px-6 py-2 rounded-2xl ${
-                timeLeft <= 5 ? 'bg-red-600 text-white animate-pulse' :
-                timeLeft <= 10 ? 'bg-orange-500 text-white' :
-                'bg-amber-600 text-white'
-              }`}>
-                {timeLeft}s
+              <div className={`px-3 py-1.5 rounded-xl font-extrabold font-mono text-white text-lg ${timeLeft <= 5 ? 'animate-pulse' : ''}`}
+                style={{ background: timeLeft <= 5 ? `${eandColors.red}40` : timeLeft <= 10 ? 'rgba(255,107,0,0.3)' : `${eandColors.brightGreen}30` }}>
+                <Clock className="w-4 h-4 inline mr-1" />{timeLeft}s
               </div>
             </div>
-
-            <div className="bg-stone-800 rounded-2xl h-3 overflow-hidden">
-              <div
-                className="bg-amber-500 h-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
+            <div className="h-1.5 rounded-full overflow-hidden bg-white/10">
+              <motion.div className="h-full rounded-full" animate={{ width: `${progress}%` }}
+                style={{ background: `linear-gradient(90deg, ${eandColors.brightGreen}, ${eandColors.red})` }} />
             </div>
-          </div>
+          </motion.div>
 
-          <div className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto w-full">
-            <div className="bg-gradient-to-br from-stone-800 via-stone-900 to-gray-900 rounded-[2rem] border-4 border-amber-600 shadow-2xl p-8 w-full mb-6">
-              <h3 className="text-2xl font-bold text-amber-200 mb-6 text-center">
+          <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full mb-4">
+              <h3 className="text-xl sm:text-2xl font-extrabold text-center mb-1" style={{ color: eandColors.oceanBlue }}>
                 {currentQuestion.text}
               </h3>
-            </div>
+            </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-              {currentQuestion.options.map((option) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+              {currentQuestion.options.map((option: any, idx: number) => {
                 const isSelected = selectedAnswer === option.id;
                 const isCorrect = option.id === currentQuestion.correctAnswer;
                 const showResult = answerLocked;
 
-                let buttonClass = 'bg-stone-800 border-stone-600 hover:border-amber-500 text-amber-100';
+                let bg = 'white';
+                let borderColor = `${eandColors.oceanBlue}12`;
+                let textColor = eandColors.oceanBlue;
 
                 if (showResult && isSelected && isCorrect) {
-                  buttonClass = 'bg-green-600 border-green-400 text-white';
+                  bg = `${eandColors.brightGreen}15`; borderColor = eandColors.brightGreen; textColor = eandColors.brightGreen;
                 } else if (showResult && isSelected && !isCorrect) {
-                  buttonClass = 'bg-red-600 border-red-400 text-white';
+                  bg = `${eandColors.red}10`; borderColor = eandColors.red; textColor = eandColors.red;
                 } else if (showResult && isCorrect) {
-                  buttonClass = 'bg-green-600 border-green-400 text-white';
+                  bg = `${eandColors.brightGreen}15`; borderColor = eandColors.brightGreen; textColor = eandColors.brightGreen;
+                } else if (isSelected) {
+                  bg = `${eandColors.red}08`; borderColor = eandColors.red;
                 }
 
                 return (
-                  <button
-                    key={option.id}
+                  <motion.button key={option.id}
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.08 }}
+                    whileTap={answerLocked ? undefined : { scale: 0.97 }}
                     onClick={() => handleAnswerSelect(option.id)}
                     disabled={answerLocked}
-                    className={`p-6 rounded-3xl border-4 transition-all text-lg font-bold ${buttonClass} disabled:cursor-not-allowed transform hover:scale-105 active:scale-95`}
-                  >
-                    {option.text}
-                  </button>
+                    className="p-4 sm:p-5 rounded-xl text-left transition-all mobile-touch disabled:cursor-not-allowed"
+                    style={{ background: bg, border: `2px solid ${borderColor}` }}>
+                    <div className="flex items-center gap-3">
+                      <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0"
+                        style={{
+                          background: showResult && isCorrect ? eandColors.brightGreen : showResult && isSelected ? eandColors.red : isSelected ? eandColors.red : `${eandColors.oceanBlue}10`,
+                          color: (showResult && (isCorrect || isSelected)) || isSelected ? 'white' : eandColors.oceanBlue,
+                        }}>
+                        {showResult && isCorrect ? <CheckCircle className="w-5 h-5" /> : showResult && isSelected && !isCorrect ? <XCircle className="w-5 h-5" /> : String.fromCharCode(65 + idx)}
+                      </span>
+                      <span className="font-medium" style={{ color: textColor }}>{option.text}</span>
+                    </div>
+                  </motion.button>
                 );
               })}
             </div>
 
             {session.config.allowSkip && !answerLocked && (
-              <div className="mt-6 flex justify-center">
-                <Button
-                  onClick={handleSkipQuestion}
-                  variant="secondary"
-                  className="bg-stone-700 hover:bg-stone-600 text-amber-200 border-2 border-stone-500"
-                >
-                  Skip Question
-                </Button>
-              </div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4">
+                <Button onClick={handleSkipQuestion} variant="ghost" size="sm">Skip Question</Button>
+              </motion.div>
             )}
           </div>
         </div>
@@ -744,128 +679,89 @@ export function IndividualGamePage() {
     }
 
     return (
-      <div className="relative min-h-screen overflow-hidden p-4">
+      <div className="relative min-h-screen overflow-hidden p-4 game-gradient-bg">
+        <div className="game-grid-bg absolute inset-0 opacity-20" />
         <Confetti active={showConfetti} duration={5000} />
 
-        {theme.backgroundImage && (
-          <>
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `url(${theme.backgroundImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                filter: 'blur(40px) brightness(0.7)',
-                transform: 'scale(1.1)',
-              }}
-            />
-            <div
-              className="absolute inset-0"
-              style={{
-                background: theme.gradients.lobby,
-                opacity: 0.85,
-              }}
-            />
-          </>
-        )}
-
-        <div className="relative z-10 max-w-5xl mx-auto">
-          <div ref={resultRef} className="bg-gradient-to-br from-stone-800 via-stone-900 to-gray-900 rounded-[2rem] border-4 border-amber-600 shadow-2xl p-8">
-            <div className="text-center mb-8">
-              <h1 className="text-5xl font-bold text-amber-300 mb-4 drop-shadow-lg">
-                Quest Complete!
-              </h1>
-              {pdfRedirectCountdown !== null && (
-                <div className="bg-green-900/50 border-2 border-green-500 rounded-2xl p-3 mb-4">
-                  <p className="text-green-300 font-medium">
-                    Opening document in {pdfRedirectCountdown}...
-                  </p>
-                </div>
-              )}
-              {pdfRedirectCountdown === null && session?.postGameFileUrl && (
-                <div className="bg-green-900/50 border-2 border-green-500 rounded-2xl p-3 mb-4">
-                  <p className="text-green-300 font-medium">Document opened in new tab</p>
-                </div>
-              )}
-              <div className="text-6xl font-bold text-amber-400 mb-2">{score} Points</div>
-              <div className="text-amber-200">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 max-w-lg mx-auto pt-4">
+          <div ref={resultRef} className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-6 pt-8 pb-6 text-center"
+              style={{ background: `linear-gradient(135deg, ${eandColors.red} 0%, #c00700 100%)` }}>
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring' }}
+                className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+                style={{ background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.3)' }}>
+                <Trophy className="w-8 h-8 text-white" />
+              </motion.div>
+              <h1 className="text-2xl font-extrabold text-white mb-1">Quest Complete!</h1>
+              <p className="text-4xl font-extrabold text-white mt-2">{score} Points</p>
+              <p className="text-sm text-white/70 mt-1">
                 {correctCount} correct · {wrongCount} wrong
                 {skippedCount > 0 && <> · {skippedCount} skipped</>}
                 {timeoutCount > 0 && <> · {timeoutCount} timeout</>}
-              </div>
+              </p>
             </div>
 
-            <div className="mb-8">
-              <IndividualResultsHexGrid
-                score={score}
-                maxScore={maxScore}
-                theme={theme}
-                playerName={playerName}
-                photoUrl={photoDataUrl}
-              />
-            </div>
+            <div className="p-6">
+              {pdfRedirectCountdown !== null && (
+                <div className="mb-4 px-4 py-2.5 rounded-xl" style={{ background: `${eandColors.brightGreen}08`, border: `1px solid ${eandColors.brightGreen}20` }}>
+                  <p className="text-sm font-medium" style={{ color: eandColors.brightGreen }}>Opening document in {pdfRedirectCountdown}...</p>
+                </div>
+              )}
+              {pdfRedirectCountdown === null && session?.postGameFileUrl && (
+                <div className="mb-4 px-4 py-2.5 rounded-xl" style={{ background: `${eandColors.brightGreen}08`, border: `1px solid ${eandColors.brightGreen}20` }}>
+                  <p className="text-sm font-medium" style={{ color: eandColors.brightGreen }}>Document opened in new tab</p>
+                </div>
+              )}
 
-            {!photoDataUrl && (
               <div className="mb-6">
-                <div className="bg-stone-900/50 rounded-3xl p-4 border-2 border-amber-700/30 text-center">
-                  <p className="text-amber-200 mb-4">Add your photo to personalize your result!</p>
-                  <div className="flex gap-3 justify-center">
+                <IndividualResultsHexGrid score={score} maxScore={maxScore} theme={theme} playerName={playerName} photoUrl={photoDataUrl} />
+              </div>
+
+              {!photoDataUrl && (
+                <div className="mb-5 p-4 rounded-xl text-center" style={{ background: `${eandColors.oceanBlue}04`, border: `1px solid ${eandColors.oceanBlue}08` }}>
+                  <p className="text-sm mb-3" style={{ color: eandColors.grey }}>Add your photo to personalize!</p>
+                  <div className="flex gap-2 justify-center">
                     <Button onClick={startPhotoCapture} size="sm">
-                      <Camera className="w-4 h-4 mr-2" />
-                      Take Photo
+                      <Camera className="w-4 h-4" /> Take Photo
                     </Button>
-                    <Button onClick={() => document.getElementById('photo-upload-input')?.click()} size="sm" variant="secondary">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Upload Photo
+                    <Button onClick={() => document.getElementById('photo-upload-input')?.click()} size="sm" variant="ghost">
+                      <Upload className="w-4 h-4" /> Upload
                     </Button>
-                    <input
-                      id="photo-upload-input"
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoUpload}
-                      className="hidden"
-                    />
+                    <input id="photo-upload-input" type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="flex gap-3">
-              <Button onClick={saveAsImage} size="lg" className="flex-1">
-                <Download className="w-5 h-5 mr-2" />
-                Save My Conquest
-              </Button>
-              <Button onClick={viewLeaderboard} size="lg" variant="secondary" className="flex-1">
-                <Trophy className="w-5 h-5 mr-2" />
-                View Leaderboard
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {showPhotoCapture && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-stone-900 rounded-[2rem] border-4 border-amber-600 p-6 max-w-md w-full">
-              <h3 className="text-2xl font-bold text-amber-300 mb-4 text-center">Take Photo</h3>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className="w-full rounded-3xl mb-4"
-              />
-              <canvas ref={canvasRef} className="hidden" />
               <div className="flex gap-3">
-                <Button onClick={stopCamera} variant="secondary" className="flex-1">
-                  Cancel
+                <Button onClick={saveAsImage} size="lg" className="flex-1">
+                  <Download className="w-5 h-5" /> Save Result
                 </Button>
-                <Button onClick={capturePhoto} className="flex-1">
-                  <Camera className="w-4 h-4 mr-2" />
-                  Capture
+                <Button onClick={viewLeaderboard} size="lg" variant="ghost" className="flex-1">
+                  <Trophy className="w-5 h-5" /> Leaderboard
                 </Button>
               </div>
             </div>
           </div>
-        )}
+        </motion.div>
+
+        <AnimatePresence>
+          {showPhotoCapture && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+              <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+                className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
+                <h3 className="text-lg font-extrabold mb-4 text-center" style={{ color: eandColors.oceanBlue }}>Take Photo</h3>
+                <video ref={videoRef} autoPlay playsInline className="w-full rounded-xl mb-4" />
+                <canvas ref={canvasRef} className="hidden" />
+                <div className="flex gap-3">
+                  <Button onClick={stopCamera} variant="ghost" className="flex-1">Cancel</Button>
+                  <Button onClick={capturePhoto} className="flex-1"><Camera className="w-4 h-4" /> Capture</Button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -878,117 +774,86 @@ export function IndividualGamePage() {
     const currentPlayerRank = leaderboard.findIndex(p => p.playerName === playerName && Math.abs(p.finalScore - score) < 0.01) + 1;
 
     return (
-      <div className="relative min-h-screen overflow-hidden p-4">
-        {theme.backgroundImage && (
-          <>
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `url(${theme.backgroundImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                filter: 'blur(40px) brightness(0.7)',
-                transform: 'scale(1.1)',
-              }}
-            />
-            <div
-              className="absolute inset-0"
-              style={{
-                background: theme.gradients.lobby,
-                opacity: 0.85,
-              }}
-            />
-          </>
-        )}
+      <div className="relative min-h-screen overflow-hidden p-4 game-gradient-bg">
+        <div className="game-grid-bg absolute inset-0 opacity-20" />
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 max-w-lg mx-auto pt-4">
+          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-6 pt-6 pb-4 text-center"
+              style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, #0c0828 100%)` }}>
+              <Trophy className="w-8 h-8 mx-auto mb-2 text-white" />
+              <h1 className="text-xl font-extrabold text-white">Hall of Champions</h1>
+            </div>
 
-        <div className="relative z-10 max-w-4xl mx-auto">
-          <div className="bg-gradient-to-br from-stone-800 via-stone-900 to-gray-900 rounded-[2rem] border-4 border-amber-600 shadow-2xl p-8">
-            <h1 className="text-4xl font-bold text-amber-300 mb-8 text-center drop-shadow-lg">
-              <Trophy className="w-10 h-10 inline-block mr-3" />
-              Hall of Champions
-            </h1>
-
-            {currentPlayerRank > 0 && (
-              <div className="bg-stone-900/50 rounded-3xl p-6 border-2 border-amber-700/30 mb-6">
-                <div className="flex items-center gap-4 p-4 bg-amber-600/20 rounded-2xl">
+            <div className="p-5">
+              {currentPlayerRank > 0 && (
+                <div className="mb-4 p-3 rounded-xl flex items-center gap-3"
+                  style={{ background: `${eandColors.red}06`, border: `1px solid ${eandColors.red}15` }}>
                   {photoDataUrl && (
-                    <div className="w-16 h-16 rounded-full border-4 border-amber-600 overflow-hidden">
+                    <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0" style={{ border: `2px solid ${eandColors.red}` }}>
                       <img src={photoDataUrl} alt="You" className="w-full h-full object-cover" />
                     </div>
                   )}
-                  <div className="flex-1">
-                    <div className="text-amber-200 font-bold text-xl">{playerName} (You)</div>
-                    <div className="text-amber-300">Score: {score} points · Rank: #{currentPlayerRank}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate" style={{ color: eandColors.oceanBlue }}>{playerName} (You)</p>
+                    <p className="text-xs" style={{ color: eandColors.grey }}>{score} pts · Rank #{currentPlayerRank}</p>
                   </div>
                 </div>
-              </div>
-            )}
-
-            <div className="bg-stone-900/50 rounded-3xl p-4 border-2 border-amber-700/30 mb-6 max-h-[500px] overflow-y-auto">
-              {leaderboard.length === 0 ? (
-                <div className="text-center text-amber-200 py-8">
-                  <p className="text-lg mb-2">Loading leaderboard...</p>
-                  <p className="text-sm text-amber-300">Fetching all player scores</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {leaderboard.map((player, index) => {
-                    const isCurrentPlayer = player.playerName === playerName && Math.abs(player.finalScore - score) < 0.01;
-                    const rank = index + 1;
-                    const getRankIcon = (rank: number) => {
-                      if (rank === 1) return '🥇';
-                      if (rank === 2) return '🥈';
-                      if (rank === 3) return '🥉';
-                      return rank;
-                    };
-
-                    return (
-                      <div
-                        key={index}
-                        className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${
-                          isCurrentPlayer
-                            ? 'bg-amber-600/30 border-2 border-amber-500'
-                            : 'bg-stone-800/50 border border-amber-700/20'
-                        }`}
-                      >
-                        <div className="w-12 h-12 rounded-full bg-amber-600 flex items-center justify-center text-white font-bold text-lg">
-                          {getRankIcon(rank)}
-                        </div>
-                        {player.photoUrl && (
-                          <div className="w-12 h-12 rounded-full border-2 border-amber-600 overflow-hidden">
-                            <img src={player.photoUrl} alt={player.playerName} className="w-full h-full object-cover" />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <div className="text-amber-200 font-bold text-lg flex items-center gap-2">
-                            {player.playerName}
-                            {isCurrentPlayer && <span className="text-xs bg-amber-600 px-2 py-1 rounded-full">You</span>}
-                          </div>
-                          <div className="text-sm text-amber-300 flex items-center gap-3">
-                            <span>{player.correctCount} correct</span>
-                            <span>·</span>
-                            <span>{player.wrongCount} wrong</span>
-                            <span>·</span>
-                            <span>{player.totalTime.toFixed(0)}s</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-3xl font-bold text-amber-400">{player.finalScore}</div>
-                          <div className="text-xs text-amber-300">points</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               )}
-            </div>
 
-            <Button onClick={() => setScreen('results')} size="lg" className="w-full">
-              <ArrowLeft className="w-5 h-5 mr-2" />
-              Return to Results
-            </Button>
+              <div className="max-h-[420px] overflow-y-auto space-y-2">
+                {leaderboard.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Loading size="sm" />
+                    <p className="text-sm mt-2" style={{ color: eandColors.grey }}>Loading leaderboard...</p>
+                  </div>
+                ) : leaderboard.map((player, index) => {
+                  const isCurrentPlayer = player.playerName === playerName && Math.abs(player.finalScore - score) < 0.01;
+                  const rank = index + 1;
+
+                  return (
+                    <motion.div key={index} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.04 }}
+                      className="flex items-center gap-3 p-3 rounded-xl"
+                      style={{
+                        background: isCurrentPlayer ? `${eandColors.red}06` : `${eandColors.oceanBlue}03`,
+                        border: `1px solid ${isCurrentPlayer ? eandColors.red + '20' : eandColors.oceanBlue + '06'}`,
+                      }}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                        style={{ background: rank <= 3 ? `linear-gradient(135deg, ${eandColors.red}, #c00700)` : eandColors.grey }}>
+                        {rank}
+                      </div>
+                      {player.photoUrl && (
+                        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0" style={{ border: `2px solid ${eandColors.oceanBlue}15` }}>
+                          <img src={player.photoUrl} alt={player.playerName} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate flex items-center gap-1" style={{ color: eandColors.oceanBlue }}>
+                          {player.playerName}
+                          {isCurrentPlayer && <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white" style={{ background: eandColors.red }}>You</span>}
+                        </p>
+                        <p className="text-[11px]" style={{ color: eandColors.grey }}>
+                          {player.correctCount} correct · {player.totalTime.toFixed(0)}s
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-lg font-extrabold" style={{ color: eandColors.red }}>{player.finalScore}</p>
+                        <p className="text-[10px]" style={{ color: eandColors.grey }}>pts</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4">
+                <Button onClick={() => setScreen('results')} size="lg" className="w-full" variant="ghost">
+                  <ArrowLeft className="w-5 h-5" /> Return to Results
+                </Button>
+              </div>
+            </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }

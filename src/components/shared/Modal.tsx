@@ -1,5 +1,7 @@
 import { X } from 'lucide-react';
 import { useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { eandColors } from '../../constants/eandColors';
 
 interface ModalProps {
   isOpen: boolean;
@@ -21,8 +23,6 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const sizeClasses = {
     sm: 'max-w-md',
     md: 'max-w-2xl',
@@ -31,23 +31,43 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black bg-opacity-80 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className={`relative bg-gradient-to-br from-gray-800 via-gray-900 to-stone-900 rounded-[2rem] border-4 border-amber-600 shadow-2xl w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto`}>
-        <div className="sticky top-0 bg-gradient-to-r from-stone-800 via-stone-900 to-gray-900 border-b-4 border-amber-700 px-6 py-4 flex items-center justify-between shadow-lg">
-          <h2 className="text-2xl font-bold text-amber-300 uppercase tracking-wider drop-shadow-lg">{title}</h2>
-          <button
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
-            className="text-amber-400 hover:text-amber-200 transition-colors p-2 rounded-2xl hover:bg-amber-900/30"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            className={`relative bg-white rounded-2xl shadow-2xl w-full ${sizeClasses[size]} max-h-[90vh] overflow-hidden`}
           >
-            <X className="w-6 h-6" />
-          </button>
+            <div
+              className="sticky top-0 z-10 px-6 py-4 flex items-center justify-between border-b"
+              style={{ borderColor: `${eandColors.oceanBlue}10`, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)' }}
+            >
+              <h2 className="text-xl font-bold" style={{ color: eandColors.oceanBlue }}>{title}</h2>
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onClose}
+                className="p-2 rounded-lg transition-colors hover:bg-gray-100"
+                style={{ color: eandColors.grey }}
+              >
+                <X className="w-5 h-5" />
+              </motion.button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-72px)]">{children}</div>
+          </motion.div>
         </div>
-        <div className="p-6 bg-gradient-to-b from-stone-900/50 to-stone-950/50">{children}</div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }
