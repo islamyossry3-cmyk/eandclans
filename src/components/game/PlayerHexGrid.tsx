@@ -207,10 +207,16 @@ export function PlayerHexGrid({
 
         .hex-polygon.clickable {
           cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
         }
 
         .hex-polygon.clickable:hover {
           filter: brightness(1.3) drop-shadow(0 0 10px currentColor);
+        }
+
+        .hex-polygon.recapturable {
+          animation: recapturePulse 1.5s ease-in-out infinite;
         }
 
         .hex-polygon.newly-claimed {
@@ -229,6 +235,17 @@ export function PlayerHexGrid({
           100% {
             transform: scale(1);
             filter: brightness(1);
+          }
+        }
+
+        @keyframes recapturePulse {
+          0%, 100% {
+            filter: brightness(0.8);
+            stroke-opacity: 0.6;
+          }
+          50% {
+            filter: brightness(1.4) drop-shadow(0 0 8px currentColor);
+            stroke-opacity: 1;
           }
         }
 
@@ -350,10 +367,11 @@ export function PlayerHexGrid({
           {hexagons.map((hex) => {
             const clickable = isClickable(hex.id);
             const territory = territoryMap.get(hex.id);
+            const isRecapturable = clickable && !!territory;
             return (
               <polygon
                 key={hex.id}
-                className={`hex-polygon ${clickable ? 'clickable' : ''} ${newlyClaimedHex === hex.id ? 'newly-claimed' : ''}`}
+                className={`hex-polygon ${clickable ? 'clickable' : ''} ${isRecapturable ? 'recapturable' : ''} ${newlyClaimedHex === hex.id ? 'newly-claimed' : ''}`}
                 points={hex.points}
                 fill={territory ? getHexFill(hex.id) : '#ffffff'}
                 fillOpacity={getHexOpacity(hex.id)}

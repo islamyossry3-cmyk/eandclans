@@ -167,9 +167,42 @@
     padding-bottom: env(safe-area-inset-bottom, 16px);
   }
 
+  .mobile-safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
   .mobile-touch {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+  }
+}
+
+/* iOS Safari specific fixes */
+html {
+  -webkit-text-size-adjust: 100%;
+  height: -webkit-fill-available;
+}
+
+body {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent iOS rubber-band scroll on fixed game views */
+.min-h-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Safe area padding for fixed elements on iPhone */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .fixed.top-4 {
+    top: max(1rem, env(safe-area-inset-top, 1rem));
+  }
+  .fixed.bottom-4 {
+    bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
   }
 }
 
