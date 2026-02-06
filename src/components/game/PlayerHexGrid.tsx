@@ -119,11 +119,14 @@ export function PlayerHexGrid({
 
   const getHexOpacity = (hexId: string) => {
     const territory = territoryMap.get(hexId);
+    // Opponent territories that are re-capturable pulse with lower opacity
+    if (territory && availableTerritories.includes(hexId)) return 0.45;
     return territory ? 0.75 : 0.15;
   };
 
   const isClickable = (hexId: string) => {
-    return availableTerritories.includes(hexId) && !territoryMap.has(hexId);
+    // Available territories include both unclaimed AND opponent-owned hexes
+    return availableTerritories.includes(hexId);
   };
 
   const handleHexClick = (hexId: string) => {
@@ -155,6 +158,7 @@ export function PlayerHexGrid({
           justify-content: center;
           align-items: center;
           overflow: hidden;
+          background-color: #0a1628;
         }
 
         .ocean-background {
@@ -237,17 +241,25 @@ export function PlayerHexGrid({
           stroke-width: 4;
         }
 
-        /* Mobile Portrait - Square cropped view */
+        /* Mobile Portrait - Full height scrollable map */
         @media screen and (max-width: 768px) and (orientation: portrait) {
           .hex-territory-map {
-            padding-top: 80px;
-            height: 100dvh;
+            padding-top: 70px;
+            height: auto;
+            min-height: 100dvh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            align-items: flex-start;
           }
 
           .game-container {
-            aspect-ratio: 1 / 1;
-            max-height: calc(100dvh - 100px);
+            aspect-ratio: auto;
+            max-height: none;
             max-width: 100vw;
+            width: 100vw;
+            height: 130vw;
+            min-height: calc(100dvh - 70px);
           }
 
           .island-image {
@@ -351,7 +363,7 @@ export function PlayerHexGrid({
                 onMouseEnter={() => clickable && setHoveredHex(hex.id)}
                 onMouseLeave={() => setHoveredHex(null)}
                 onClick={() => handleHexClick(hex.id)}
-                aria-label={`Territory ${hex.id}${territoryMap.has(hex.id) ? ` - owned by ${territoryMap.get(hex.id)?.owner}` : availableTerritories.includes(hex.id) ? ' - available to claim' : ' - unclaimed'}`}
+                aria-label={`Territory ${hex.id}${territoryMap.has(hex.id) ? ` - owned by ${territoryMap.get(hex.id)?.owner}${availableTerritories.includes(hex.id) ? ' - tap to re-capture' : ''}` : availableTerritories.includes(hex.id) ? ' - available to claim' : ' - unclaimed'}`}
                 style={{
                   cursor: clickable ? 'pointer' : 'default',
                   mixBlendMode: territory ? 'screen' : 'normal'

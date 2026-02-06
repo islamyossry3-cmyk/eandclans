@@ -52,6 +52,8 @@ export interface HexTerritory {
   claimedAt: string;
 }
 
+type DbRow = Record<string, unknown>;
+
 export const gameService = {
   async createLiveGame(sessionId: string): Promise<LiveGame | null> {
     try {
@@ -453,7 +455,7 @@ export const gameService = {
           if (payload.eventType === 'DELETE') {
             if (onDelete) onDelete();
           } else if (payload.new) {
-            onUpdate(this.mapDbToLiveGame(payload.new as any));
+            onUpdate(this.mapDbToLiveGame(payload.new as DbRow));
           }
         }
       )
@@ -486,9 +488,9 @@ export const gameService = {
         },
         (payload) => {
           if (payload.eventType === 'INSERT' && payload.new && callbacks.onInsert) {
-            callbacks.onInsert(this.mapDbToGamePlayer(payload.new));
+            callbacks.onInsert(this.mapDbToGamePlayer(payload.new as DbRow));
           } else if (payload.eventType === 'UPDATE' && payload.new && callbacks.onUpdate) {
-            callbacks.onUpdate(this.mapDbToGamePlayer(payload.new));
+            callbacks.onUpdate(this.mapDbToGamePlayer(payload.new as DbRow));
           } else if (payload.eventType === 'DELETE' && payload.old && callbacks.onDelete) {
             callbacks.onDelete(payload.old.id as string);
           }
@@ -519,7 +521,7 @@ export const gameService = {
         },
         (payload) => {
           if (payload.new) {
-            onUpdate(this.mapDbToGamePlayer(payload.new));
+            onUpdate(this.mapDbToGamePlayer(payload.new as DbRow));
           }
         }
       )
@@ -586,44 +588,44 @@ export const gameService = {
     return channel;
   },
 
-  mapDbToLiveGame(data: any): LiveGame {
+  mapDbToLiveGame(data: DbRow): LiveGame {
     return {
-      id: data.id,
-      sessionId: data.session_id,
-      status: data.status,
-      startedAt: data.started_at,
-      endsAt: data.ends_at,
-      team1Score: data.team1_score,
-      team2Score: data.team2_score,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
+      id: data.id as string,
+      sessionId: data.session_id as string,
+      status: data.status as LiveGame['status'],
+      startedAt: data.started_at as string | undefined,
+      endsAt: data.ends_at as string | undefined,
+      team1Score: data.team1_score as number,
+      team2Score: data.team2_score as number,
+      createdAt: data.created_at as string,
+      updatedAt: data.updated_at as string,
     };
   },
 
-  mapDbToGamePlayer(data: any): GamePlayer {
+  mapDbToGamePlayer(data: DbRow): GamePlayer {
     return {
-      id: data.id,
-      liveGameId: data.live_game_id,
-      playerName: data.player_name,
-      team: data.team,
-      score: data.score,
-      territoriesClaimed: data.territories_claimed,
-      questionsAnswered: data.questions_answered,
-      correctAnswers: data.correct_answers,
-      connected: data.connected,
-      joinedAt: data.joined_at,
-      lastActive: data.last_active,
+      id: data.id as string,
+      liveGameId: data.live_game_id as string,
+      playerName: data.player_name as string,
+      team: data.team as GamePlayer['team'],
+      score: data.score as number,
+      territoriesClaimed: data.territories_claimed as number,
+      questionsAnswered: data.questions_answered as number,
+      correctAnswers: data.correct_answers as number,
+      connected: data.connected as boolean,
+      joinedAt: data.joined_at as string,
+      lastActive: data.last_active as string,
     };
   },
 
-  mapDbToHexTerritory(data: any): HexTerritory {
+  mapDbToHexTerritory(data: DbRow): HexTerritory {
     return {
-      id: data.id,
-      liveGameId: data.live_game_id,
-      hexId: data.hex_id,
-      owner: data.team,
-      claimedBy: data.claimed_by_player_id,
-      claimedAt: data.claimed_at,
+      id: data.id as string,
+      liveGameId: data.live_game_id as string,
+      hexId: data.hex_id as string,
+      owner: data.team as HexTerritory['owner'],
+      claimedBy: data.claimed_by_player_id as string | undefined,
+      claimedAt: data.claimed_at as string,
     };
-  },
+  }
 };

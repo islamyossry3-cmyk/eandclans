@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { sessionService } from '../../services/sessionService';
@@ -14,7 +14,7 @@ import { Confetti as SharedConfetti } from '../../components/shared/Confetti';
 import { ScorePopup, ScoreStreak, Celebration, AchievementToast } from '../../components/game';
 import { PlayerHexGrid } from '../../components/game/PlayerHexGrid';
 import { Clock, Trophy, CheckCircle, XCircle, Users, Volume2, VolumeX, Target, Zap, MapPin, AlertCircle, FileText, Download } from 'lucide-react';
-import type { Session } from '../../types/session';
+import type { Session, Question } from '../../types/session';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getTheme } from '../../constants/themes';
 import { eandColors } from '../../constants/eandColors';
@@ -27,12 +27,15 @@ export function PlayerGamePage() {
   const playerEmail = searchParams.get('email');
   const playerOrganization = searchParams.get('organization');
 
-  const customFields: Record<string, string> = {};
-  searchParams.forEach((value, key) => {
-    if (!['name', 'email', 'organization'].includes(key)) {
-      customFields[key] = value;
-    }
-  });
+  const customFields = useMemo(() => {
+    const fields: Record<string, string> = {};
+    searchParams.forEach((value, key) => {
+      if (!['name', 'email', 'organization'].includes(key)) {
+        fields[key] = value;
+      }
+    });
+    return fields;
+  }, [searchParams]);
 
   const { playerId, team, setPlayer, setPlayerData, playerData } = usePlayerStore();
   const { toasts, removeToast, success, info, error: showError } = useToast();
@@ -47,7 +50,7 @@ export function PlayerGamePage() {
   const [allPlayers, setAllPlayers] = useState<GamePlayer[]>([]);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentQuestion, setCurrentQuestion] = useState<any>(null);
+  const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [hasAnswered, setHasAnswered] = useState(false);
   const [answerResult, setAnswerResult] = useState<'correct' | 'incorrect' | null>(null);
@@ -57,21 +60,59 @@ export function PlayerGamePage() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [newlyClaimedHex, setNewlyClaimedHex] = useState<string | null>(null);
 
+  const liveGameId = liveGame?.id;
+
+  const loadSession = useCallback(async () => {
+    if (!sessionPin) return;
+    setIsLoading(true);
+
+    const foundSession = await sessionService.getSessionByPin(sessionPin);
+
+    if (!foundSession) {
+      setIsLoading(false);
+      return;
+    }
+
+    setSession(foundSession);
+
+    let game = await gameService.getLiveGameBySessionId(foundSession.id);
+    if (!game) {
+      game = await gameService.createLiveGame(foundSession.id);
+    }
+
+    if (game) {
+      setLiveGame(game);
+      const gamePlayers = await gameService.getPlayers(game.id);
+      setAllPlayers(gamePlayers);
+
+      const gameTerritories = await gameService.getTerritories(game.id);
+      setTerritories(gameTerritories);
+
+      const existingPlayer = gamePlayers.find((p) => p.playerName === playerName);
+      if (existingPlayer && existingPlayer.team) {
+        setPlayer(existingPlayer.id, playerName!, game.id, existingPlayer.team);
+        setPlayerData(existingPlayer);
+      }
+    }
+
+    setIsLoading(false);
+  }, [sessionPin, playerName, setPlayer, setPlayerData]);
+
   useEffect(() => {
     if (!playerName) {
       navigate(`/join?pin=${sessionPin || ''}`);
       return;
     }
     loadSession();
-  }, [sessionPin, playerName]);
+  }, [sessionPin, playerName, navigate, loadSession]);
 
   useEffect(() => {
-    if (!liveGame) return;
+    if (!liveGameId) return;
 
     const channels: RealtimeChannel[] = [];
 
     const gameChannel = gameService.subscribeToGame(
-      liveGame.id,
+      liveGameId,
       (updatedGame) => {
         if (updatedGame.status === 'playing' && prevGameStatus.current === 'lobby') {
           success('Game started! Good luck!');
@@ -105,7 +146,7 @@ export function PlayerGamePage() {
     );
     channels.push(gameChannel);
 
-    const playersChannel = gameService.subscribeToPlayerUpdates(liveGame.id, {
+    const playersChannel = gameService.subscribeToPlayerUpdates(liveGameId, {
       onInsert: (newPlayer) => {
         setAllPlayers((prev) => {
           if (prev.some((p) => p.id === newPlayer.id)) return prev;
@@ -138,7 +179,7 @@ export function PlayerGamePage() {
     });
     channels.push(playersChannel);
 
-    const territoriesChannel = gameService.subscribeToTerritories(liveGame.id, (updatedTerritories) => {
+    const territoriesChannel = gameService.subscribeToTerritories(liveGameId, (updatedTerritories) => {
       setTerritories(updatedTerritories);
     });
     channels.push(territoriesChannel);
@@ -146,10 +187,10 @@ export function PlayerGamePage() {
     return () => {
       channels.forEach((channel) => channel.unsubscribe());
     };
-  }, [liveGame?.id, playerId]);
+  }, [liveGameId, playerId, info, success, setPlayerData]);
 
   useEffect(() => {
-    if (!playerId || !liveGame) return;
+    if (!playerId || !liveGameId) return;
 
     const updateConnection = () => {
       gameService.updatePlayerConnection(playerId, true);
@@ -171,7 +212,7 @@ export function PlayerGamePage() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       gameService.updatePlayerConnection(playerId, false);
     };
-  }, [playerId, liveGame?.id]);
+  }, [playerId, liveGameId]);
 
   useEffect(() => {
     if (liveGame?.status === 'playing' && liveGame.endsAt) {
@@ -186,7 +227,7 @@ export function PlayerGamePage() {
 
   // Background music control — with iOS Safari audio unlock
   useEffect(() => {
-    if (!session) return;
+    if (!session?.id) return;
 
     const musicUrl = session.backgroundMusicUrl || '/assets/eandd.mp3';
 
@@ -236,7 +277,7 @@ export function PlayerGamePage() {
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('click', unlockAudio);
     };
-  }, [liveGame?.status, isMuted, session]);
+  }, [liveGame?.status, isMuted, session?.id, session?.backgroundMusicUrl]);
 
   // Update audio mute state
   useEffect(() => {
@@ -249,41 +290,6 @@ export function PlayerGamePage() {
       }
     }
   }, [isMuted, liveGame?.status]);
-
-  const loadSession = async () => {
-    setIsLoading(true);
-
-    const foundSession = await sessionService.getSessionByPin(sessionPin!);
-
-    if (!foundSession) {
-      setIsLoading(false);
-      return;
-    }
-
-    setSession(foundSession);
-
-    let game = await gameService.getLiveGameBySessionId(foundSession.id);
-    if (!game) {
-      game = await gameService.createLiveGame(foundSession.id);
-    }
-
-    if (game) {
-      setLiveGame(game);
-      const gamePlayers = await gameService.getPlayers(game.id);
-      setAllPlayers(gamePlayers);
-
-      const gameTerritories = await gameService.getTerritories(game.id);
-      setTerritories(gameTerritories);
-
-      const existingPlayer = gamePlayers.find((p) => p.playerName === playerName);
-      if (existingPlayer && existingPlayer.team) {
-        setPlayer(existingPlayer.id, playerName!, game.id, existingPlayer.team);
-        setPlayerData(existingPlayer);
-      }
-    }
-
-    setIsLoading(false);
-  };
 
   const handleTeamSelect = async (selectedTeam: 'team1' | 'team2') => {
     if (!liveGame || !session || isLoading) {
@@ -692,7 +698,7 @@ export function PlayerGamePage() {
                     </h2>
 
                     <div className="space-y-3 mb-5">
-                      {currentQuestion.options?.map((option: any, idx: number) => (
+                      {currentQuestion.options?.map((option, idx) => (
                         <motion.button
                           key={option.id}
                           initial={{ opacity: 0, x: -10 }}

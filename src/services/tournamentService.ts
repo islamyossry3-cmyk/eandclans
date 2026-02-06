@@ -17,6 +17,8 @@ function debouncedRefetch<T>(key: string, fn: () => Promise<T>, callback: (resul
   }, delayMs));
 }
 
+type DbRow = Record<string, unknown>;
+
 export interface TournamentQuestion {
   id: string;
   text: string;
@@ -417,7 +419,14 @@ export const tournamentService = {
     scores?: { team1: number; team2: number }
   ): Promise<boolean> {
     try {
-      const updates: Record<string, any> = { status };
+      const updates: {
+        status: 'pending' | 'active' | 'completed';
+        actual_start?: string;
+        actual_end?: string;
+        team1_final_score?: number;
+        team2_final_score?: number;
+        winner?: 'team1' | 'team2' | 'tie' | null;
+      } = { status };
       
       if (status === 'active') {
         updates.actual_start = new Date().toISOString();
@@ -528,7 +537,7 @@ export const tournamentService = {
 
         if (!player) return false;
 
-        const newStats: Record<string, any> = {
+        const newStats: Record<string, number | string> = {
           updated_at: new Date().toISOString(),
         };
 
@@ -624,7 +633,7 @@ export const tournamentService = {
         },
         (payload) => {
           if (payload.new) {
-            onUpdate(this.mapDbToTournament(payload.new as any));
+            onUpdate(this.mapDbToTournament(payload.new as DbRow));
           }
         }
       )
