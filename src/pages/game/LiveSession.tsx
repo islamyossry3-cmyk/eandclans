@@ -11,7 +11,7 @@ import { ToastContainer } from '../../components/shared/Toast';
 import { TeamIcon } from '../../components/shared/TeamIcon';
 import { Confetti } from '../../components/shared/Confetti';
 import { useToast } from '../../hooks/useToast';
-import { Play, Users, Clock, Grid3x3, Trophy, Copy, Check, Wifi, WifiOff } from 'lucide-react';
+import { Play, Users, Grid3x3, Trophy, Copy, Check, Wifi, WifiOff } from 'lucide-react';
 import type { Session } from '../../types/session';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getTheme } from '../../constants/themes';
@@ -30,7 +30,6 @@ export function LiveSessionPage() {
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   const [restartCountdown, setRestartCountdown] = useState<number | null>(null);
   const { toasts, removeToast, success, info } = useToast();
-  const prevPlayerCount = useRef(0);
   const prevTerritoryCount = useRef(0);
 
   useEffect(() => {
@@ -236,12 +235,6 @@ export function LiveSessionPage() {
     }
   };
 
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const copyGameLink = async () => {
     const gameLink = `${window.location.origin}/individual/${session?.sessionPin}`;
     try {
@@ -249,7 +242,7 @@ export function LiveSessionPage() {
       setLinkCopied(true);
       success('Link copied to clipboard!');
       setTimeout(() => setLinkCopied(false), 3000);
-    } catch (err) {
+    } catch {
       info('Failed to copy link');
     }
   };
@@ -289,123 +282,120 @@ export function LiveSessionPage() {
     const islandImage = session.design.customBackgroundUrl || theme.backgroundImage;
 
     return (
-      <div className="relative min-h-screen overflow-hidden p-4 md:p-8">
-        {/* Blurred Background */}
+      <div className="relative min-h-screen overflow-hidden">
+        {/* Full-screen island map background */}
         {islandImage && (
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url(${islandImage})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'blur(40px) brightness(0.7)',
-              transform: 'scale(1.1)',
-              zIndex: -20,
-            }}
+          <img
+            src={islandImage}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ zIndex: 0 }}
           />
         )}
+        {/* Dark overlay for contrast */}
         <div
           className="absolute inset-0"
           style={{
-            background: theme.gradients.lobby,
-            opacity: 0.85,
-            zIndex: -10,
+            background: `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.55) 100%)`,
+            zIndex: 1,
           }}
         />
 
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 drop-shadow-lg">{session.name}</h1>
+        {/* UI content on top */}
+        <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-3 py-4">
+          {/* Title — compact */}
+          <div className="text-center mb-3">
+            <h1 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">{session.name}</h1>
             {session.design.brandingText && (
-              <p className="text-lg md:text-xl text-white/90 drop-shadow-md">{session.design.brandingText}</p>
+              <p className="text-sm md:text-base text-white/80 drop-shadow-md">{session.design.brandingText}</p>
             )}
           </div>
 
           {session.type === 'team_battle' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-            {/* Team 1 Flag Card */}
+          <div className="grid grid-cols-3 gap-3 md:gap-5 w-full max-w-5xl items-start">
+            {/* Team 1 Flag Card — compact */}
             <div
               className="relative"
               style={{
-                clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 60px), 50% 100%, 0 calc(100% - 60px))',
+                clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 40px), 50% 100%, 0 calc(100% - 40px))',
               }}
             >
               <div
-                className="h-full p-6 md:p-8 backdrop-blur-xl"
+                className="h-full p-3 md:p-5 backdrop-blur-xl"
                 style={{
                   background: `linear-gradient(135deg, ${session.design.team1.color}95 0%, ${session.design.team1.color}75 100%)`,
-                  border: `4px solid ${session.design.team1.color}`,
-                  minHeight: '500px',
+                  border: `3px solid ${session.design.team1.color}`,
+                  minHeight: '280px',
                 }}
               >
-                <div className="text-center mb-6">
-                  <div className="flex justify-center mb-6">
-                    <TeamIcon icon={session.design.team1.icon} size="3xl" />
+                <div className="text-center mb-3">
+                  <div className="flex justify-center mb-3">
+                    <TeamIcon icon={session.design.team1.icon} size="2xl" />
                   </div>
-                  <h2 className="text-3xl md:text-4xl font-bold text-white mb-3 drop-shadow-lg">
+                  <h2 className="text-lg md:text-2xl font-bold text-white mb-1 drop-shadow-lg">
                     {session.design.team1.name}
                   </h2>
-                  <div className="flex items-center justify-center gap-2 text-white text-lg">
-                    <Users className="w-6 h-6" />
+                  <div className="flex items-center justify-center gap-1.5 text-white text-sm">
+                    <Users className="w-4 h-4" />
                     <span className="font-bold">
                       {getTeamPlayers('team1').length} / {session.config.maxPlayersPerTeam}
                     </span>
                   </div>
                 </div>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
                   {getTeamPlayers('team1').map((player) => (
-                    <div key={player.id} className="bg-white/30 backdrop-blur-sm rounded-2xl px-4 py-3 text-white font-semibold">
+                    <div key={player.id} className="bg-white/30 backdrop-blur-sm rounded-xl px-3 py-2 text-white text-sm font-semibold">
                       {player.playerName}
                     </div>
                   ))}
                   {getTeamPlayers('team1').length === 0 && (
-                    <p className="text-center text-white/80 py-8">Waiting for players...</p>
+                    <p className="text-center text-white/70 py-4 text-sm">Waiting for players...</p>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* QR Code Center Card */}
-            <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-6 md:p-8 shadow-2xl">
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Join the Battle</h3>
-                <p className="text-gray-600">Scan QR Code or enter PIN</p>
+            {/* QR Code Center Card — compact */}
+            <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-4 md:p-5 shadow-2xl">
+              <div className="text-center mb-3">
+                <h3 className="text-base md:text-lg font-bold text-gray-900 mb-0.5">Join the Battle</h3>
+                <p className="text-xs text-gray-500">Scan QR Code or enter PIN</p>
               </div>
 
-              <div className="flex justify-center mb-6">
-                <div className="bg-white p-4 rounded-3xl shadow-lg">
+              <div className="flex justify-center mb-3">
+                <div className="bg-white p-2 rounded-2xl shadow-md">
                   <QRCode
                     value={`${window.location.origin}/join?pin=${session.sessionPin}`}
-                    size={200}
+                    size={130}
                   />
                 </div>
               </div>
 
               <div
-                className="rounded-3xl p-6 text-center mb-6 shadow-lg"
+                className="rounded-2xl p-3 text-center mb-3 shadow-md"
                 style={{ background: theme.gradients.player }}
               >
-                <p className="text-white text-sm font-semibold mb-2 opacity-90">SESSION PIN</p>
-                <p className="text-white text-4xl md:text-5xl font-bold tracking-wider font-mono drop-shadow-lg">
+                <p className="text-white text-[10px] font-semibold mb-1 opacity-90">SESSION PIN</p>
+                <p className="text-white text-2xl md:text-3xl font-bold tracking-wider font-mono drop-shadow-lg">
                   {session.sessionPin}
                 </p>
               </div>
 
-              <div className="flex items-center justify-center gap-2 text-gray-700 mb-4 text-lg">
-                <Users className="w-6 h-6" />
+              <div className="flex items-center justify-center gap-1.5 text-gray-700 mb-2 text-sm">
+                <Users className="w-4 h-4" />
                 <span className="font-bold">{players.length} Players Joined</span>
               </div>
 
               {/* Realtime Connection Status */}
-              <div className="flex items-center justify-center gap-2 mb-6 text-sm">
+              <div className="flex items-center justify-center gap-1.5 mb-3 text-xs">
                 {realtimeConnected ? (
                   <>
-                    <Wifi className="w-4 h-4 text-green-500" />
+                    <Wifi className="w-3.5 h-3.5 text-green-500" />
                     <span className="text-green-600 font-medium">Live updates active</span>
                   </>
                 ) : (
                   <>
-                    <WifiOff className="w-4 h-4 text-yellow-500 animate-pulse" />
+                    <WifiOff className="w-3.5 h-3.5 text-yellow-500 animate-pulse" />
                     <span className="text-yellow-600 font-medium">Connecting...</span>
                   </>
                 )}
@@ -415,101 +405,101 @@ export function LiveSessionPage() {
                 <Button
                   onClick={handleStartGame}
                   size="lg"
-                  className="w-full bg-green-500 hover:bg-green-600 flex items-center justify-center gap-2 shadow-lg"
+                  className="w-full bg-green-500 hover:bg-green-600 flex items-center justify-center gap-2 shadow-lg text-sm py-2"
                 >
-                  <Play className="w-5 h-5" />
+                  <Play className="w-4 h-4" />
                   Start Game
                 </Button>
               )}
               {players.length < 2 && (
-                <div className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-4 text-center">
-                  <p className="text-yellow-800 font-semibold">Need at least 2 players to start</p>
+                <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-2.5 text-center">
+                  <p className="text-yellow-800 font-semibold text-xs">Need at least 2 players to start</p>
                 </div>
               )}
             </div>
 
-            {/* Team 2 Flag Card */}
+            {/* Team 2 Flag Card — compact */}
             <div
               className="relative"
               style={{
-                clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 60px), 50% 100%, 0 calc(100% - 60px))',
+                clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 40px), 50% 100%, 0 calc(100% - 40px))',
               }}
             >
               <div
-                className="h-full p-6 md:p-8 backdrop-blur-xl"
+                className="h-full p-3 md:p-5 backdrop-blur-xl"
                 style={{
                   background: `linear-gradient(135deg, ${session.design.team2.color}95 0%, ${session.design.team2.color}75 100%)`,
-                  border: `4px solid ${session.design.team2.color}`,
-                  minHeight: '500px',
+                  border: `3px solid ${session.design.team2.color}`,
+                  minHeight: '280px',
                 }}
               >
-                <div className="text-center mb-6">
-                  <div className="flex justify-center mb-6">
-                    <TeamIcon icon={session.design.team2.icon} size="3xl" />
+                <div className="text-center mb-3">
+                  <div className="flex justify-center mb-3">
+                    <TeamIcon icon={session.design.team2.icon} size="2xl" />
                   </div>
-                  <h2 className="text-3xl md:text-4xl font-bold text-white mb-3 drop-shadow-lg">
+                  <h2 className="text-lg md:text-2xl font-bold text-white mb-1 drop-shadow-lg">
                     {session.design.team2.name}
                   </h2>
-                  <div className="flex items-center justify-center gap-2 text-white text-lg">
-                    <Users className="w-6 h-6" />
+                  <div className="flex items-center justify-center gap-1.5 text-white text-sm">
+                    <Users className="w-4 h-4" />
                     <span className="font-bold">
                       {getTeamPlayers('team2').length} / {session.config.maxPlayersPerTeam}
                     </span>
                   </div>
                 </div>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
                   {getTeamPlayers('team2').map((player) => (
-                    <div key={player.id} className="bg-white/30 backdrop-blur-sm rounded-2xl px-4 py-3 text-white font-semibold">
+                    <div key={player.id} className="bg-white/30 backdrop-blur-sm rounded-xl px-3 py-2 text-white text-sm font-semibold">
                       {player.playerName}
                     </div>
                   ))}
                   {getTeamPlayers('team2').length === 0 && (
-                    <p className="text-center text-white/80 py-8">Waiting for players...</p>
+                    <p className="text-center text-white/70 py-4 text-sm">Waiting for players...</p>
                   )}
                 </div>
               </div>
             </div>
           </div>
           ) : (
-            <div className="max-w-2xl mx-auto">
-              <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-8 shadow-2xl">
-                <div className="text-center mb-6">
-                  <h3 className="text-3xl font-bold text-gray-900 mb-2">Individual Challenge Mode</h3>
-                  <p className="text-gray-600">Share this link for players to start their own game</p>
+            <div className="w-full max-w-lg">
+              <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-5 shadow-2xl">
+                <div className="text-center mb-4">
+                  <h3 className="text-xl font-bold text-gray-900 mb-1">Individual Challenge Mode</h3>
+                  <p className="text-gray-500 text-sm">Share this link for players to start their own game</p>
                 </div>
 
                 <div
-                  className="rounded-3xl p-6 text-center mb-6 shadow-lg"
+                  className="rounded-2xl p-4 text-center mb-4 shadow-md"
                   style={{ background: theme.gradients.player }}
                 >
-                  <p className="text-white text-sm font-semibold mb-2 opacity-90">GAME LINK</p>
-                  <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 mb-4">
-                    <p className="text-white text-sm font-mono break-all">
+                  <p className="text-white text-xs font-semibold mb-1 opacity-90">GAME LINK</p>
+                  <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 mb-3">
+                    <p className="text-white text-xs font-mono break-all">
                       {`${window.location.origin}/individual/${session.sessionPin}`}
                     </p>
                   </div>
                   <Button
                     onClick={copyGameLink}
                     size="lg"
-                    className="w-full bg-white text-gray-900 hover:bg-gray-100 flex items-center justify-center gap-2"
+                    className="w-full bg-white text-gray-900 hover:bg-gray-100 flex items-center justify-center gap-2 text-sm"
                   >
                     {linkCopied ? (
                       <>
-                        <Check className="w-5 h-5" />
+                        <Check className="w-4 h-4" />
                         Link Copied!
                       </>
                     ) : (
                       <>
-                        <Copy className="w-5 h-5" />
+                        <Copy className="w-4 h-4" />
                         Copy Game Link
                       </>
                     )}
                   </Button>
                 </div>
 
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-3xl p-6 mb-6">
-                  <h4 className="font-bold text-blue-900 mb-2">How it works:</h4>
-                  <ul className="text-blue-800 space-y-2 text-sm">
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4">
+                  <h4 className="font-bold text-blue-900 mb-1 text-sm">How it works:</h4>
+                  <ul className="text-blue-800 space-y-1 text-xs">
                     <li>• Each player plays independently against an AI opponent</li>
                     <li>• Players can choose their difficulty level</li>
                     <li>• Results are tracked individually</li>
@@ -521,9 +511,9 @@ export function LiveSessionPage() {
                   <Button
                     onClick={() => window.open(`/individual/${session.sessionPin}`, '_blank')}
                     size="lg"
-                    className="bg-green-500 hover:bg-green-600"
+                    className="bg-green-500 hover:bg-green-600 text-sm"
                   >
-                    <Play className="w-5 h-5 mr-2" />
+                    <Play className="w-4 h-4 mr-1.5" />
                     Preview Game
                   </Button>
                 </div>
