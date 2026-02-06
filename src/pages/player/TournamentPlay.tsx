@@ -12,6 +12,7 @@ import { useGameEffects } from '../../hooks/useGameEffects';
 import { ScorePopup, ScoreStreak, Celebration, AchievementToast } from '../../components/game';
 import { PlayerHexGrid } from '../../components/game/PlayerHexGrid';
 import { eandColors } from '../../constants/eandColors';
+import { getTheme } from '../../constants/themes';
 import { 
   Clock, Trophy, CheckCircle, XCircle, Users, Award,
   Zap, Target, Play, Pause, Calendar, Volume2, VolumeX
@@ -65,6 +66,7 @@ export function TournamentPlayPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(new Set());
   const [allSessions, setAllSessions] = useState<TournamentSession[]>([]);
+  const [nextSessionCountdown, setNextSessionCountdown] = useState<number | null>(null);
 
   useEffect(() => {
     if (!tournamentId) {
@@ -178,38 +180,66 @@ export function TournamentPlayPage() {
     }
   }, [session?.status, session?.scheduledEnd]);
 
-  const loadTournamentData = async () => {
-    setIsLoading(true);
+  // Countdown to next pending session
+  useEffect(() => {
+    if (session) {
+      setNextSessionCountdown(null);
+      return;
+    }
+    const pendingSession = allSessions
+      .filter(s => s.status === 'pending')
+      .sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime())[0];
 
-    const [tournamentData, sessionsData, playersData] = await Promise.all([
-      tournamentService.getTournament(tournamentId!),
-      tournamentService.getTournamentSessions(tournamentId!),
-      tournamentService.getTournamentPlayers(tournamentId!),
-    ]);
-
-    if (!tournamentData) {
-      showError('Tournament not found');
-      navigate('/join');
+    if (!pendingSession) {
+      setNextSessionCountdown(null);
       return;
     }
 
-    setTournament(tournamentData);
-    setCurrentTournament(tournamentData);
-    setLeaderboard(playersData.sort((a, b) => b.totalCredits - a.totalCredits).slice(0, 10));
-    setAllSessions(sessionsData);
+    const tick = () => {
+      const remaining = Math.max(0, Math.floor((new Date(pendingSession.scheduledStart).getTime() - Date.now()) / 1000));
+      setNextSessionCountdown(remaining);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [session, allSessions]);
 
-    // Load questions from tournament
-    loadQuestions(tournamentData);
+  const loadTournamentData = async () => {
+    setIsLoading(true);
+    try {
+      const [tournamentData, sessionsData, playersData] = await Promise.all([
+        tournamentService.getTournament(tournamentId!),
+        tournamentService.getTournamentSessions(tournamentId!),
+        tournamentService.getTournamentPlayers(tournamentId!),
+      ]);
 
-    // Find active session
-    const activeSession = sessionsData.find(s => s.status === 'active');
-    if (activeSession) {
-      setSession(activeSession);
-      setCurrentSession(activeSession);
-      await loadSessionGame(activeSession);
+      if (!tournamentData) {
+        showError('Tournament not found');
+        navigate('/join');
+        return;
+      }
+
+      setTournament(tournamentData);
+      setCurrentTournament(tournamentData);
+      setLeaderboard(playersData.sort((a, b) => b.totalCredits - a.totalCredits).slice(0, 10));
+      setAllSessions(sessionsData);
+
+      // Load questions from tournament
+      loadQuestions(tournamentData);
+
+      // Find active session
+      const activeSession = sessionsData.find(s => s.status === 'active');
+      if (activeSession) {
+        setSession(activeSession);
+        setCurrentSession(activeSession);
+        await loadSessionGame(activeSession);
+      }
+    } catch (err) {
+      console.error('[TournamentPlay] Failed to load tournament data:', err);
+      showError('Failed to load tournament data');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   const loadQuestions = (tournamentData: Tournament) => {
@@ -429,13 +459,14 @@ export function TournamentPlayPage() {
 
   // Tournament is not active or no active session
   if (tournament.status !== 'active' || !session) {
+    const theme = getTheme(tournament.design?.backgroundTheme || 'win-together');
     return (
-      <div className="min-h-screen p-4" style={{ backgroundColor: eandColors.lightGrey }}>
+      <div className="min-h-screen p-4" style={{ background: theme.gradients.lobby }}>
         <div className="max-w-lg mx-auto pt-8">
           {/* Tournament Header */}
           <div
             className="rounded-t-3xl p-6 text-center"
-            style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.red} 100%)` }}
+            style={{ background: theme.gradients.player }}
           >
             <Trophy className="w-12 h-12 mx-auto mb-3 text-white" />
             <h1 className="text-xl font-bold text-white">{tournament.name}</h1>
@@ -511,9 +542,24 @@ export function TournamentPlayPage() {
                 <>
                   <Clock className="w-12 h-12 mx-auto mb-4 animate-spin" style={{ color: eandColors.oceanBlue, animationDuration: '3s' }} />
                   <p className="font-semibold" style={{ color: eandColors.oceanBlue }}>Waiting for Next Session</p>
-                  <p className="text-sm mt-2" style={{ color: eandColors.grey }}>
-                    Break time! Next session starts automatically
-                  </p>
+                  {nextSessionCountdown !== null && nextSessionCountdown > 0 ? (
+                    <div className="mt-3">
+                      <p className="text-3xl font-mono font-bold" style={{ color: eandColors.brightGreen }}>
+                        {formatTime(nextSessionCountdown)}
+                      </p>
+                      <p className="text-xs mt-1" style={{ color: eandColors.grey }}>
+                        until next session starts
+                      </p>
+                    </div>
+                  ) : nextSessionCountdown === 0 ? (
+                    <p className="text-sm mt-2 font-semibold" style={{ color: eandColors.brightGreen }}>
+                      Starting now...
+                    </p>
+                  ) : (
+                    <p className="text-sm mt-2" style={{ color: eandColors.grey }}>
+                      Break time! Next session starts automatically
+                    </p>
+                  )}
                 </>
               )}
             </div>
