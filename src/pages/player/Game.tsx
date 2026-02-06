@@ -147,7 +147,7 @@ export function PlayerGamePage() {
     };
 
     updateConnection();
-    const heartbeat = setInterval(updateConnection, 30000);
+    const heartbeat = setInterval(updateConnection, 120000);
 
     const handleVisibilityChange = () => {
       if (!document.hidden) {

@@ -1,9 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { tournamentService, type Tournament, type TournamentSession, type TournamentPlayer } from '../../services/tournamentService';
 import { gameService, type LiveGame, type GamePlayer, type HexTerritory } from '../../services/gameService';
 import { useTournamentStore } from '../../stores/tournamentStore';
-import { useTournamentScheduler } from '../../hooks/useTournamentScheduler';
 import { Loading } from '../../components/shared/Loading';
 import { Button } from '../../components/shared/Button';
 import { ToastContainer } from '../../components/shared/Toast';
@@ -83,17 +82,8 @@ export function TournamentPlayPage() {
     loadTournamentData();
   }, [tournamentId, currentPlayer]);
 
-  // Auto session scheduler (player-side)
-  useTournamentScheduler({
-    tournament,
-    sessions: allSessions,
-    onSessionsChanged: useCallback(() => {
-      if (tournamentId) {
-        tournamentService.getTournamentSessions(tournamentId).then(setAllSessions);
-      }
-    }, [tournamentId]),
-    enabled: !!tournament && tournament.status === 'active',
-  });
+  // Session scheduler is admin-only to prevent 10k+ clients from polling.
+  // Players observe session changes via realtime subscriptions above.
 
   useEffect(() => {
     if (!tournament) return;

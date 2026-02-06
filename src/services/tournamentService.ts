@@ -1,6 +1,22 @@
 import { supabase } from '../lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+// Debounce helper to prevent thundering-herd refetches
+const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+function debouncedRefetch<T>(key: string, fn: () => Promise<T>, callback: (result: T) => void, delayMs = 500) {
+  const existing = debounceTimers.get(key);
+  if (existing) clearTimeout(existing);
+  debounceTimers.set(key, setTimeout(async () => {
+    debounceTimers.delete(key);
+    try {
+      const result = await fn();
+      callback(result);
+    } catch (e) {
+      console.error(`[tournamentService] debounced refetch failed for ${key}:`, e);
+    }
+  }, delayMs));
+}
+
 export interface TournamentQuestion {
   id: string;
   text: string;
@@ -599,9 +615,13 @@ export const tournamentService = {
           table: 'tournament_sessions',
           filter: `tournament_id=eq.${tournamentId}`,
         },
-        async () => {
-          const sessions = await this.getTournamentSessions(tournamentId);
-          onUpdate(sessions);
+        () => {
+          debouncedRefetch(
+            `tsessions:${tournamentId}`,
+            () => this.getTournamentSessions(tournamentId),
+            onUpdate,
+            500
+          );
         }
       )
       .subscribe();
@@ -621,9 +641,13 @@ export const tournamentService = {
           table: 'tournament_players',
           filter: `tournament_id=eq.${tournamentId}`,
         },
-        async () => {
-          const players = await this.getTournamentPlayers(tournamentId);
-          onUpdate(players);
+        () => {
+          debouncedRefetch(
+            `tplayers:${tournamentId}`,
+            () => this.getTournamentPlayers(tournamentId),
+            onUpdate,
+            800
+          );
         }
       )
       .subscribe();

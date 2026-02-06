@@ -1,6 +1,22 @@
 import { supabase } from '../lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+// Debounce helper to prevent thundering-herd refetches
+const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+function debouncedRefetch<T>(key: string, fn: () => Promise<T>, callback: (result: T) => void, delayMs = 300) {
+  const existing = debounceTimers.get(key);
+  if (existing) clearTimeout(existing);
+  debounceTimers.set(key, setTimeout(async () => {
+    debounceTimers.delete(key);
+    try {
+      const result = await fn();
+      callback(result);
+    } catch (e) {
+      console.error(`[gameService] debounced refetch failed for ${key}:`, e);
+    }
+  }, delayMs));
+}
+
 export interface LiveGame {
   id: string;
   sessionId: string;
@@ -186,20 +202,27 @@ export const gameService = {
 
   async updateScore(gameId: string, team: 'team1' | 'team2', points: number): Promise<boolean> {
     try {
-      const game = await this.getLiveGame(gameId);
-      if (!game) return false;
+      // Atomic increment via rpc to avoid read-then-write race conditions
+      const column = team === 'team1' ? 'team1_score' : 'team2_score';
+      const { error } = await supabase.rpc('increment_game_score', {
+        game_id: gameId,
+        score_column: column,
+        increment_by: points,
+      });
 
-      const newScore = team === 'team1'
-        ? { team1_score: game.team1Score + points }
-        : { team2_score: game.team2Score + points };
-
-      const { error } = await supabase
-        .from('live_games')
-        .update({
-          ...newScore,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', gameId);
+      // Fallback to direct update if rpc doesn't exist yet
+      if (error && error.message?.includes('function') && error.message?.includes('does not exist')) {
+        const game = await this.getLiveGame(gameId);
+        if (!game) return false;
+        const newScore = team === 'team1'
+          ? { team1_score: game.team1Score + points }
+          : { team2_score: game.team2Score + points };
+        const { error: updateError } = await supabase
+          .from('live_games')
+          .update({ ...newScore, updated_at: new Date().toISOString() })
+          .eq('id', gameId);
+        return !updateError;
+      }
 
       return !error;
     } catch {
@@ -218,8 +241,6 @@ export const gameService = {
     }
   ): Promise<GamePlayer | null> {
     try {
-      console.log('[gameService.addPlayer] Adding player:', { gameId, playerName, team, registrationData });
-      
       const { data, error } = await supabase
         .from('game_players')
         .insert({
@@ -233,15 +254,10 @@ export const gameService = {
         .select()
         .single();
 
-      if (error) {
-        console.error('[gameService.addPlayer] Supabase error:', error.message, error.details, error.hint);
-        throw error;
-      }
-      
-      console.log('[gameService.addPlayer] Player added successfully:', data.id);
+      if (error) throw error;
       return this.mapDbToGamePlayer(data);
     } catch (error) {
-      console.error('[gameService.addPlayer] Failed to add player:', error instanceof Error ? error.message : error);
+      console.error('[gameService] addPlayer failed:', error instanceof Error ? error.message : String(error));
       return null;
     }
   },
@@ -270,29 +286,33 @@ export const gameService = {
     }
   ): Promise<boolean> {
     try {
-      const { data: player } = await supabase
-        .from('game_players')
-        .select('*')
-        .eq('id', playerId)
-        .single();
+      // Atomic increment via rpc to avoid read-then-write race conditions
+      const { error } = await supabase.rpc('increment_player_stats', {
+        player_id: playerId,
+        add_questions: updates.questionsAnswered || 0,
+        add_correct: updates.correctAnswers || 0,
+        add_territories: updates.territoriesClaimed || 0,
+      });
 
-      if (!player) return false;
-
-      const { error } = await supabase
-        .from('game_players')
-        .update({
-          questions_answered: updates.questionsAnswered !== undefined
-            ? player.questions_answered + updates.questionsAnswered
-            : player.questions_answered,
-          correct_answers: updates.correctAnswers !== undefined
-            ? player.correct_answers + updates.correctAnswers
-            : player.correct_answers,
-          territories_claimed: updates.territoriesClaimed !== undefined
-            ? player.territories_claimed + updates.territoriesClaimed
-            : player.territories_claimed,
-          last_active: new Date().toISOString(),
-        })
-        .eq('id', playerId);
+      // Fallback to read-then-write if rpc doesn't exist yet
+      if (error && error.message?.includes('function') && error.message?.includes('does not exist')) {
+        const { data: player } = await supabase
+          .from('game_players')
+          .select('*')
+          .eq('id', playerId)
+          .single();
+        if (!player) return false;
+        const { error: updateError } = await supabase
+          .from('game_players')
+          .update({
+            questions_answered: player.questions_answered + (updates.questionsAnswered || 0),
+            correct_answers: player.correct_answers + (updates.correctAnswers || 0),
+            territories_claimed: player.territories_claimed + (updates.territoriesClaimed || 0),
+            last_active: new Date().toISOString(),
+          })
+          .eq('id', playerId);
+        return !updateError;
+      }
 
       return !error;
     } catch {
@@ -420,8 +440,6 @@ export const gameService = {
     gameId: string,
     onUpdate: (players: GamePlayer[]) => void
   ): RealtimeChannel {
-    console.log('[gameService.subscribeToPlayers] Setting up subscription for game:', gameId);
-    
     const channel = supabase
       .channel(`players:${gameId}`)
       .on(
@@ -432,16 +450,17 @@ export const gameService = {
           table: 'game_players',
           filter: `live_game_id=eq.${gameId}`,
         },
-        async (payload) => {
-          console.log('[gameService.subscribeToPlayers] Received player change:', payload.eventType);
-          const players = await this.getPlayers(gameId);
-          console.log('[gameService.subscribeToPlayers] Updated player count:', players.length);
-          onUpdate(players);
+        () => {
+          // Debounce: batch rapid player changes into one refetch
+          debouncedRefetch(
+            `players:${gameId}`,
+            () => this.getPlayers(gameId),
+            onUpdate,
+            500
+          );
         }
       )
-      .subscribe((status) => {
-        console.log('[gameService.subscribeToPlayers] Subscription status:', status);
-      });
+      .subscribe();
 
     return channel;
   },
@@ -460,9 +479,14 @@ export const gameService = {
           table: 'hex_territories',
           filter: `live_game_id=eq.${gameId}`,
         },
-        async () => {
-          const territories = await this.getTerritories(gameId);
-          onUpdate(territories);
+        () => {
+          // Debounce: batch rapid territory changes into one refetch
+          debouncedRefetch(
+            `territories:${gameId}`,
+            () => this.getTerritories(gameId),
+            onUpdate,
+            500
+          );
         }
       )
       .subscribe();

@@ -71,14 +71,25 @@ export function LiveSessionPage() {
     );
     channels.push(gameChannel);
 
-    const playersChannel = gameService.subscribeToPlayers(liveGame.id, (updatedPlayers) => {
-      if (prevPlayerCount.current > 0 && updatedPlayers.length > prevPlayerCount.current) {
-        const newPlayer = updatedPlayers[updatedPlayers.length - 1];
-        info(`${newPlayer.playerName} joined the game`);
+    const playersChannel = gameService.subscribeToPlayerUpdates(
+      liveGame.id,
+      {
+        onInsert: (newPlayer) => {
+          setPlayers(prev => {
+            const next = [...prev, newPlayer];
+            // Sort by joined_at to maintain order if needed, or just append
+            return next;
+          });
+          info(`${newPlayer.playerName} joined the game`);
+        },
+        onUpdate: (updatedPlayer) => {
+          setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? updatedPlayer : p));
+        },
+        onDelete: (deletedId) => {
+          setPlayers(prev => prev.filter(p => p.id !== deletedId));
+        }
       }
-      prevPlayerCount.current = updatedPlayers.length;
-      setPlayers(updatedPlayers);
-    });
+    );
     channels.push(playersChannel);
 
     // Track realtime connection status
