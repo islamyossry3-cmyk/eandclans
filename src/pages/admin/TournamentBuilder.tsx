@@ -43,11 +43,14 @@ export function TournamentBuilderPage() {
   const [currentStep, setCurrentStep] = useState<Step>('basic');
   const [uploadingMusic, setUploadingMusic] = useState(false);
   const [uploadingBackground, setUploadingBackground] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [postGameFileUrl, setPostGameFileUrl] = useState<string | undefined>();
 
   const csvInputRef = useRef<HTMLInputElement>(null);
   const arabicCsvInputRef = useRef<HTMLInputElement>(null);
   const musicInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -134,7 +137,8 @@ export function TournamentBuilderPage() {
     setUploadingMusic(true);
     try {
       const { supabase } = await import('../../lib/supabase');
-      const fileName = `music/${crypto.randomUUID()}-${file.name}`;
+      const ext = file.name.split('.').pop() || 'mp3';
+      const fileName = `music/${crypto.randomUUID()}.${ext}`;
       const { data, error: uploadError } = await supabase.storage
         .from('game-assets')
         .upload(fileName, file, { cacheControl: '3600', upsert: false });
@@ -168,7 +172,8 @@ export function TournamentBuilderPage() {
     setUploadingBackground(true);
     try {
       const { supabase } = await import('../../lib/supabase');
-      const fileName = `backgrounds/${crypto.randomUUID()}-${file.name}`;
+      const ext = file.name.split('.').pop() || 'png';
+      const fileName = `backgrounds/${crypto.randomUUID()}.${ext}`;
       const { data, error: uploadError } = await supabase.storage
         .from('game-assets')
         .upload(fileName, file, { cacheControl: '3600', upsert: false });
@@ -183,6 +188,40 @@ export function TournamentBuilderPage() {
     } finally {
       setUploadingBackground(false);
       if (backgroundInputRef.current) backgroundInputRef.current.value = '';
+    }
+  };
+
+  // PDF upload handler
+  const handlePdfUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      toastError('Please upload a PDF file');
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      toastError('PDF must be less than 50MB');
+      return;
+    }
+    setUploadingPdf(true);
+    try {
+      const { supabase } = await import('../../lib/supabase');
+      const ext = file.name.split('.').pop() || 'pdf';
+      const fileName = `pdfs/${crypto.randomUUID()}.${ext}`;
+      const { data, error: uploadError } = await supabase.storage
+        .from('game-assets')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from('game-assets')
+        .getPublicUrl(data.path);
+      setPostGameFileUrl(publicUrl);
+      toastSuccess('Values PDF uploaded');
+    } catch {
+      toastError('Failed to upload PDF');
+    } finally {
+      setUploadingPdf(false);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
     }
   };
 
@@ -323,6 +362,7 @@ export function TournamentBuilderPage() {
       excludedDays: formData.excludedDays.length > 0 ? formData.excludedDays : undefined,
       questions,
       design,
+      postGameFileUrl,
     });
 
     setIsLoading(false);
@@ -756,6 +796,42 @@ export function TournamentBuilderPage() {
             value={design.brandingText || ''}
             onChange={(e) => setDesign({ ...design, brandingText: e.target.value })}
           />
+        </div>
+
+        {/* Values PDF Upload */}
+        <div className="mt-4">
+          <label className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>
+            Values PDF (optional — players can download at end of tournament)
+          </label>
+          {postGameFileUrl ? (
+            <div className="flex items-center gap-4">
+              <FileText className="w-8 h-8" style={{ color: eandColors.brightGreen }} />
+              <div className="flex-1">
+                <p className="text-sm font-semibold" style={{ color: eandColors.brightGreen }}>PDF uploaded</p>
+                <button type="button"
+                  className="text-sm mt-1 px-3 py-1 rounded-lg"
+                  style={{ color: eandColors.red, backgroundColor: `${eandColors.red}10` }}
+                  onClick={() => setPostGameFileUrl(undefined)}
+                >
+                  <Trash2 className="w-3 h-3 inline mr-1" /> Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <input ref={pdfInputRef} type="file" accept="application/pdf" className="hidden" onChange={handlePdfUpload} />
+              <button type="button"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:scale-105"
+                style={{ backgroundColor: eandColors.lightGrey, color: eandColors.oceanBlue }}
+                onClick={() => pdfInputRef.current?.click()}
+                disabled={uploadingPdf}
+              >
+                <Upload className="w-4 h-4" />
+                {uploadingPdf ? 'Uploading...' : 'Upload Values PDF'}
+              </button>
+              <p className="text-xs mt-1" style={{ color: eandColors.grey }}>PDF — max 50MB</p>
+            </div>
+          )}
         </div>
       </div>
 

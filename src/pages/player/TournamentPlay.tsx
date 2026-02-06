@@ -15,7 +15,8 @@ import { eandColors } from '../../constants/eandColors';
 import { getTheme } from '../../constants/themes';
 import { 
   Clock, Trophy, CheckCircle, XCircle, Users, Award,
-  Zap, Target, Play, Pause, Calendar, Volume2, VolumeX
+  Zap, Target, Play, Pause, Calendar, Volume2, VolumeX,
+  Download, FileText
 } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -564,6 +565,23 @@ export function TournamentPlayPage() {
               )}
             </div>
           </div>
+
+          {/* Download Values PDF */}
+          {tournament.postGameFileUrl && (
+            <div className="mt-6">
+              <a
+                href={tournament.postGameFileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-3 px-6 py-5 rounded-2xl text-white font-bold text-lg shadow-lg transition-all hover:scale-[1.02] active:scale-95"
+                style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.brightGreen} 100%)` }}
+              >
+                <FileText className="w-6 h-6" />
+                Download e& Values PDF
+                <Download className="w-6 h-6" />
+              </a>
+            </div>
+          )}
 
           {/* Leaderboard Preview */}
           {leaderboard.length > 0 && (

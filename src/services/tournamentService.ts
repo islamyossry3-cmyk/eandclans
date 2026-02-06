@@ -59,6 +59,7 @@ export interface Tournament {
   questions: TournamentQuestion[];
   design: TournamentDesign;
   config: Record<string, unknown>;
+  postGameFileUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,6 +113,7 @@ export const tournamentService = {
     questions?: TournamentQuestion[];
     design?: TournamentDesign;
     config?: Record<string, unknown>;
+    postGameFileUrl?: string;
   }): Promise<Tournament | null> {
     try {
       const config = {
@@ -136,6 +138,7 @@ export const tournamentService = {
           questions: data.questions || [],
           design: data.design || defaultTournamentDesign,
           config,
+          post_game_file_url: data.postGameFileUrl,
         })
         .select()
         .single();
@@ -648,6 +651,7 @@ export const tournamentService = {
       questions: (data.questions as TournamentQuestion[]) || [],
       design: (data.design as TournamentDesign) || defaultTournamentDesign,
       config,
+      postGameFileUrl: data.post_game_file_url as string | undefined,
       createdAt: data.created_at as string,
       updatedAt: data.updated_at as string,
     };

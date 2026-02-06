@@ -164,7 +164,8 @@ export function SessionBuilderPage() {
 
     try {
       const { supabase } = await import('../../lib/supabase');
-      const fileName = `music/${crypto.randomUUID()}-${file.name}`;
+      const ext = file.name.split('.').pop() || 'mp3';
+      const fileName = `music/${crypto.randomUUID()}.${ext}`;
       
       const { data, error: uploadError } = await supabase.storage
         .from('game-assets')
@@ -213,7 +214,8 @@ export function SessionBuilderPage() {
 
     try {
       const { supabase } = await import('../../lib/supabase');
-      const fileName = `${crypto.randomUUID()}-${file.name}`;
+      const ext = file.name.split('.').pop() || 'pdf';
+      const fileName = `pdfs/${crypto.randomUUID()}.${ext}`;
       
       const { data, error: uploadError } = await supabase.storage
         .from('game-assets')
@@ -256,7 +258,8 @@ export function SessionBuilderPage() {
     setUploadingBackground(true);
     try {
       const { supabase } = await import('../../lib/supabase');
-      const fileName = `backgrounds/${crypto.randomUUID()}-${file.name}`;
+      const ext = file.name.split('.').pop() || 'png';
+      const fileName = `backgrounds/${crypto.randomUUID()}.${ext}`;
       const { data, error: uploadError } = await supabase.storage
         .from('game-assets')
         .upload(fileName, file, { cacheControl: '3600', upsert: false });
