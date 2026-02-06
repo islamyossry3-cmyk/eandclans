@@ -218,43 +218,56 @@ interface AchievementToastProps {
 }
 
 export function AchievementToast({ achievements, onDismiss }: AchievementToastProps) {
+  // Auto-dismiss achievements after 3s
+  useEffect(() => {
+    if (achievements.length === 0) return;
+    const timer = setTimeout(() => {
+      onDismiss(achievements[0]);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [achievements, onDismiss]);
+
+  // Only show the most recent achievement on mobile to prevent overlap
+  const visibleAchievements = achievements.slice(0, 2);
+
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-      {achievements.map((type) => {
+    <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-[calc(100%-2rem)] max-w-sm pointer-events-auto">
+      {visibleAchievements.map((type, index) => {
         const achievement = ACHIEVEMENTS[type];
         return (
           <div
             key={type}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl cursor-pointer transform transition-all hover:scale-105"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl cursor-pointer backdrop-blur-md"
             style={{
-              background: `linear-gradient(135deg, ${achievement.color}20 0%, ${achievement.color}40 100%)`,
+              background: `linear-gradient(135deg, ${achievement.color}cc 0%, ${achievement.color}ee 100%)`,
               border: `2px solid ${achievement.color}`,
-              animation: 'slideInRight 0.3s ease-out',
+              animation: `slideDown 0.3s ease-out ${index * 0.1}s both`,
+              opacity: index === 0 ? 1 : 0.9,
             }}
             onClick={() => onDismiss(type)}
           >
             <div
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: achievement.color }}
+              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}
             >
               <div className="w-5 h-5 text-white">{achievement.icon}</div>
             </div>
-            <div>
-              <div className="font-bold text-white text-sm">{achievement.title}</div>
-              <div className="text-white/70 text-xs">{achievement.description}</div>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-white text-sm truncate">{achievement.title}</div>
+              <div className="text-white/80 text-xs truncate">{achievement.description}</div>
             </div>
           </div>
         );
       })}
 
       <style>{`
-        @keyframes slideInRight {
+        @keyframes slideDown {
           from {
-            transform: translateX(100%);
+            transform: translateY(-100%);
             opacity: 0;
           }
           to {
-            transform: translateX(0);
+            transform: translateY(0);
             opacity: 1;
           }
         }

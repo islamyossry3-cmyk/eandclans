@@ -239,9 +239,14 @@ export function PlayerHexGrid({
 
         /* Mobile Portrait - Square cropped view */
         @media screen and (max-width: 768px) and (orientation: portrait) {
+          .hex-territory-map {
+            padding-top: 80px;
+            height: 100dvh;
+          }
+
           .game-container {
             aspect-ratio: 1 / 1;
-            max-height: 90vh;
+            max-height: calc(100dvh - 100px);
             max-width: 100vw;
           }
 
@@ -309,12 +314,14 @@ export function PlayerHexGrid({
       )}
 
       <div className="game-container">
-        <img
-          className="island-image"
-          src={islandImageUrl}
-          alt="Island terrain"
-          loading="lazy"
-        />
+        {islandImageUrl && (
+          <img
+            className="island-image"
+            src={islandImageUrl}
+            alt="Island terrain"
+            loading="lazy"
+          />
+        )}
 
         <svg
           className="hex-grid-svg"

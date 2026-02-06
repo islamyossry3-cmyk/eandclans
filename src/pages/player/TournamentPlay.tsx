@@ -634,9 +634,9 @@ export function TournamentPlayPage() {
     const maxPerTeam = tournament.maxPlayersPerTeam || 25;
 
     return (
-      <div className="min-h-screen p-4 flex items-center justify-center" style={{ backgroundColor: eandColors.lightGrey }}>
+      <div className="min-h-screen p-4 pb-20 flex items-center justify-center" style={{ background: getTheme(tournament.design?.backgroundTheme || 'win-together').gradients.lobby }}>
         <div className="max-w-lg w-full">
-          <div className="bg-white rounded-3xl shadow-lg p-6 mb-4">
+          <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-lg p-6 mb-4">
             <div className="text-center mb-6">
               <h1 className="text-2xl font-bold" style={{ color: eandColors.oceanBlue }}>
                 Session #{session.sessionNumber}
@@ -715,6 +715,8 @@ export function TournamentPlayPage() {
 
   // Active session - Playing
   if (session && liveGame && team) {
+    const theme = getTheme(tournament.design?.backgroundTheme || 'win-together');
+    const customBg = tournament.design?.customBackgroundUrl;
     const t1Color = tournament?.design?.team1?.color || eandColors.red;
     const t2Color = tournament?.design?.team2?.color || eandColors.oceanBlue;
     const t1Name = tournament?.design?.team1?.name || 'Team 1';
@@ -747,7 +749,7 @@ export function TournamentPlayPage() {
             team1Color={t1Color}
             team2Color={t2Color}
             backgroundVideoUrl={undefined}
-            islandImageUrl={undefined}
+            islandImageUrl={customBg || theme.backgroundImage}
             availableTerritories={availableTerritories}
             onHexClick={handleClaimTerritory}
             myTeam={team}
@@ -762,7 +764,7 @@ export function TournamentPlayPage() {
     // Question view
     if (currentQuestion) {
       return (
-        <div className="min-h-screen p-4" style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.red} 100%)` }}>
+        <div className="min-h-screen p-4 pb-20" style={{ background: theme.gradients.player }}>
           <div className="max-w-2xl mx-auto pt-4">
             {/* Header */}
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 mb-4 text-white">
@@ -858,7 +860,7 @@ export function TournamentPlayPage() {
 
     // Ready to play view
     return (
-      <div className="min-h-screen p-4 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.red} 100%)` }}>
+      <div className="min-h-screen p-4 pb-20 flex items-center justify-center" style={{ background: theme.gradients.player }}>
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <div
             className="w-24 h-24 rounded-full mx-auto mb-6 flex items-center justify-center"
