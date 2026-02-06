@@ -799,7 +799,7 @@ export function TournamentPlayPage() {
     if (availableTerritories.length > 0) {
       return (
         <div className="relative min-h-screen">
-          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="fixed top-4 left-0 right-0 z-50 flex justify-center px-4">
             <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl px-6 py-3">
               <div className="flex items-center gap-3">
                 <CheckCircle className="w-6 h-6" style={{ color: eandColors.brightGreen }} />

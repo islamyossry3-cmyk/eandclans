@@ -599,7 +599,7 @@ export function PlayerGamePage() {
       return (
         <div className="relative min-h-screen">
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
-            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
+            className="fixed top-4 left-0 right-0 z-50 flex justify-center px-4">
             <div className="bg-white rounded-2xl shadow-2xl px-6 py-3 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${eandColors.brightGreen}15` }}>
                 <CheckCircle className="w-6 h-6" style={{ color: eandColors.brightGreen }} />

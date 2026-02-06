@@ -104,7 +104,12 @@ export function PlayerHexGrid({
     if (availableTerritories.includes(hexId)) {
       return myTeamColor;
     }
-    return '#ffffff';
+    const territory = territoryMap.get(hexId);
+    if (territory) {
+      return territory.owner === 'team1' ? team1Color : team2Color;
+    }
+    // Unclaimed, not available: completely invisible
+    return 'transparent';
   };
 
   const getStrokeWidth = (hexId: string) => {
@@ -114,14 +119,22 @@ export function PlayerHexGrid({
     if (availableTerritories.includes(hexId)) {
       return 3;
     }
-    return 1;
+    const territory = territoryMap.get(hexId);
+    if (territory) {
+      return 2;
+    }
+    // Unclaimed, not available: no outline
+    return 0;
   };
 
   const getHexOpacity = (hexId: string) => {
     const territory = territoryMap.get(hexId);
     // Opponent territories that are re-capturable pulse with lower opacity
     if (territory && availableTerritories.includes(hexId)) return 0.45;
-    return territory ? 0.75 : 0.15;
+    if (territory) return 0.7;
+    // Unclaimed non-available: fully invisible
+    if (!availableTerritories.includes(hexId)) return 0;
+    return 0.15;
   };
 
   const isClickable = (hexId: string) => {
@@ -250,33 +263,24 @@ export function PlayerHexGrid({
         }
 
         .center-hex {
-          stroke-dasharray: 10, 5;
           cursor: default;
           pointer-events: none;
           fill: none;
-          stroke: rgba(0, 0, 0, 0.8);
-          stroke-width: 4;
+          stroke: transparent;
+          stroke-width: 0;
         }
 
-        /* Mobile Portrait - Full height scrollable map */
+        /* Mobile Portrait */
         @media screen and (max-width: 768px) and (orientation: portrait) {
           .hex-territory-map {
-            padding-top: 70px;
-            height: auto;
-            min-height: 100dvh;
-            overflow-y: auto;
-            overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
-            align-items: flex-start;
+            padding-top: 80px;
+            height: 100dvh;
           }
 
           .game-container {
-            aspect-ratio: auto;
-            max-height: none;
+            aspect-ratio: 1 / 1;
+            max-height: calc(100dvh - 100px);
             max-width: 100vw;
-            width: 100vw;
-            height: 130vw;
-            min-height: calc(100dvh - 70px);
           }
 
           .island-image {
