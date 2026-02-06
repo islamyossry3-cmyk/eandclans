@@ -1,12 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { tournamentService, type Tournament, type TournamentSession, type TournamentPlayer } from '../../services/tournamentService';
+import { useTournamentScheduler } from '../../hooks/useTournamentScheduler';
+import { formatCairoDateTime } from '../../utils/cairoTime';
 import { Button } from '../../components/shared/Button';
 import { Loading } from '../../components/shared/Loading';
 import { eandColors } from '../../constants/eandColors';
+import { QRCodeCanvas } from 'qrcode.react';
+import html2canvas from 'html2canvas';
 import { 
   Trophy, ArrowLeft, Play, Pause, Users, Clock, 
-  Calendar, Award, TrendingUp, RefreshCw 
+  Calendar, Award, TrendingUp, RefreshCw, Share2,
+  Copy, Download, Link, CheckCircle
 } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -19,6 +24,10 @@ export function TournamentDashboardPage() {
   const [players, setPlayers] = useState<TournamentPlayer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const qrRef = useRef<HTMLDivElement>(null);
+
+  const joinUrl = `${window.location.origin}/tournament/${tournamentId}/join`;
 
   useEffect(() => {
     if (tournamentId) {
@@ -54,7 +63,7 @@ export function TournamentDashboardPage() {
     };
   }, [tournament?.id]);
 
-  const loadTournament = async () => {
+  const loadTournament = useCallback(async () => {
     setIsLoading(true);
     
     const [tournamentData, sessionsData, playersData] = await Promise.all([
@@ -67,7 +76,15 @@ export function TournamentDashboardPage() {
     setSessions(sessionsData);
     setPlayers(playersData);
     setIsLoading(false);
-  };
+  }, [tournamentId]);
+
+  // Auto session scheduler
+  useTournamentScheduler({
+    tournament,
+    sessions,
+    onSessionsChanged: loadTournament,
+    enabled: true,
+  });
 
   const handleStatusChange = async (newStatus: 'active' | 'paused' | 'completed') => {
     if (!tournament) return;
@@ -75,25 +92,47 @@ export function TournamentDashboardPage() {
     setIsUpdating(true);
     
     if (newStatus === 'active' && tournament.status === 'scheduled') {
-      // Starting tournament for the first time - use startTournament to generate sessions
       await tournamentService.startTournament(tournament.id);
     } else {
       await tournamentService.updateTournament(tournament.id, { status: newStatus });
     }
     
-    // Reload tournament data
     await loadTournament();
     setIsUpdating(false);
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(joinUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // Fallback
+      const input = document.createElement('input');
+      input.value = joinUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  };
+
+  const handleDownloadQR = async () => {
+    if (!qrRef.current) return;
+    try {
+      const canvas = await html2canvas(qrRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 3,
+      });
+      const link = document.createElement('a');
+      link.download = `tournament-${tournament?.name?.replace(/\s+/g, '-') || tournamentId}-qr.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (error) {
+      console.error('Failed to download QR code:', error);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -132,7 +171,7 @@ export function TournamentDashboardPage() {
     <div className="min-h-screen p-6" style={{ backgroundColor: eandColors.lightGrey }}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate('/dashboard')}
@@ -141,7 +180,7 @@ export function TournamentDashboardPage() {
               <ArrowLeft className="w-6 h-6" style={{ color: eandColors.oceanBlue }} />
             </button>
             <div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-3xl font-bold" style={{ color: eandColors.oceanBlue }}>
                   {tournament.name}
                 </h1>
@@ -159,7 +198,7 @@ export function TournamentDashboardPage() {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               onClick={loadTournament}
               variant="secondary"
@@ -171,8 +210,9 @@ export function TournamentDashboardPage() {
             {tournament.status === 'scheduled' && (
               <Button
                 onClick={() => handleStatusChange('active')}
-                className="flex items-center gap-2 bg-green-500 hover:bg-green-600"
+                variant="success"
                 disabled={isUpdating}
+                className="flex items-center gap-2"
               >
                 <Play className="w-4 h-4" />
                 Start Tournament
@@ -191,13 +231,86 @@ export function TournamentDashboardPage() {
             {tournament.status === 'paused' && (
               <Button
                 onClick={() => handleStatusChange('active')}
-                className="flex items-center gap-2 bg-green-500 hover:bg-green-600"
+                variant="success"
                 disabled={isUpdating}
+                className="flex items-center gap-2"
               >
                 <Play className="w-4 h-4" />
                 Resume
               </Button>
             )}
+          </div>
+        </div>
+
+        {/* Share & QR Code Card */}
+        <div className="bg-white rounded-2xl p-6 shadow-lg mb-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${eandColors.mauve}15` }}>
+              <Share2 className="w-5 h-5" style={{ color: eandColors.mauve }} />
+            </div>
+            <h2 className="text-xl font-bold" style={{ color: eandColors.oceanBlue }}>Share Tournament</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Link Section */}
+            <div>
+              <label className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>
+                <Link className="w-4 h-4 inline mr-1" /> Join Link
+              </label>
+              <div className="flex items-center gap-2 mb-4">
+                <div
+                  className="flex-1 px-4 py-3 rounded-xl text-sm font-mono truncate"
+                  style={{ backgroundColor: eandColors.lightGrey, color: eandColors.oceanBlue }}
+                >
+                  {joinUrl}
+                </div>
+                <Button
+                  onClick={handleCopyLink}
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-1 flex-shrink-0"
+                >
+                  {linkCopied ? (
+                    <><CheckCircle className="w-4 h-4" style={{ color: eandColors.brightGreen }} /> Copied!</>
+                  ) : (
+                    <><Copy className="w-4 h-4" /> Copy</>
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs mb-4" style={{ color: eandColors.grey }}>
+                Share this link with employees. They can join any time during the tournament.
+              </p>
+              <div className="p-4 rounded-xl" style={{ backgroundColor: `${eandColors.brightGreen}08`, border: `1px solid ${eandColors.brightGreen}20` }}>
+                <p className="text-sm" style={{ color: eandColors.darkGreen }}>
+                  <strong>How it works:</strong> Employees open the link, enter their name, pick a team, and start answering questions to claim territory. They can join any active session mid-game.
+                </p>
+              </div>
+            </div>
+
+            {/* QR Code Section */}
+            <div className="flex flex-col items-center">
+              <div ref={qrRef} className="bg-white p-6 rounded-2xl shadow-inner mb-4" style={{ border: `2px solid ${eandColors.lightGrey}` }}>
+                <QRCodeCanvas
+                  value={joinUrl}
+                  size={180}
+                  level="H"
+                  includeMargin={true}
+                  bgColor="#ffffff"
+                  fgColor={eandColors.oceanBlue}
+                />
+                <p className="text-center text-xs font-semibold mt-2" style={{ color: eandColors.oceanBlue }}>
+                  {tournament.name}
+                </p>
+              </div>
+              <Button
+                onClick={handleDownloadQR}
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Download QR Code
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -216,23 +329,23 @@ export function TournamentDashboardPage() {
               <Clock className="w-5 h-5" style={{ color: eandColors.brightGreen }} />
               <span className="text-sm font-semibold" style={{ color: eandColors.grey }}>Sessions Completed</span>
             </div>
-            <p className="text-3xl font-bold" style={{ color: eandColors.brightGreen }}>{completedSessions}</p>
+            <p className="text-3xl font-bold" style={{ color: eandColors.brightGreen }}>{completedSessions} / {sessions.length}</p>
           </div>
 
           <div className="bg-white rounded-2xl p-6 shadow-lg">
             <div className="flex items-center gap-3 mb-2">
               <Calendar className="w-5 h-5" style={{ color: eandColors.mauve }} />
-              <span className="text-sm font-semibold" style={{ color: eandColors.grey }}>Start Date</span>
+              <span className="text-sm font-semibold" style={{ color: eandColors.grey }}>Start (Cairo)</span>
             </div>
-            <p className="text-lg font-bold" style={{ color: eandColors.mauve }}>{formatDate(tournament.startDate)}</p>
+            <p className="text-lg font-bold" style={{ color: eandColors.mauve }}>{formatCairoDateTime(tournament.startDate)}</p>
           </div>
 
           <div className="bg-white rounded-2xl p-6 shadow-lg">
             <div className="flex items-center gap-3 mb-2">
               <Calendar className="w-5 h-5" style={{ color: eandColors.red }} />
-              <span className="text-sm font-semibold" style={{ color: eandColors.grey }}>End Date</span>
+              <span className="text-sm font-semibold" style={{ color: eandColors.grey }}>End (Cairo)</span>
             </div>
-            <p className="text-lg font-bold" style={{ color: eandColors.red }}>{formatDate(tournament.endDate)}</p>
+            <p className="text-lg font-bold" style={{ color: eandColors.red }}>{formatCairoDateTime(tournament.endDate)}</p>
           </div>
         </div>
 
@@ -240,40 +353,39 @@ export function TournamentDashboardPage() {
           {/* Current Session */}
           <div className="bg-white rounded-2xl p-6 shadow-lg">
             <div className="flex items-center gap-3 mb-6">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: `${eandColors.brightGreen}15` }}
-              >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${eandColors.brightGreen}15` }}>
                 <Play className="w-5 h-5" style={{ color: eandColors.brightGreen }} />
               </div>
-              <h2 className="text-xl font-bold" style={{ color: eandColors.oceanBlue }}>
-                Current Session
-              </h2>
+              <h2 className="text-xl font-bold" style={{ color: eandColors.oceanBlue }}>Current Session</h2>
             </div>
 
             {currentSession ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span style={{ color: eandColors.grey }}>Session #</span>
-                  <span className="font-bold" style={{ color: eandColors.oceanBlue }}>
-                    {currentSession.sessionNumber}
-                  </span>
+                  <span className="font-bold" style={{ color: eandColors.oceanBlue }}>{currentSession.sessionNumber}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span style={{ color: eandColors.grey }}>Started At</span>
                   <span className="font-bold" style={{ color: eandColors.oceanBlue }}>
-                    {currentSession.actualStart ? formatDate(currentSession.actualStart) : 'Not started'}
+                    {currentSession.actualStart ? formatCairoDateTime(currentSession.actualStart) : 'Not started'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span style={{ color: eandColors.grey }}>Team 1 Score</span>
-                  <span className="font-bold text-xl" style={{ color: eandColors.red }}>
+                  <span style={{ color: eandColors.grey }}>Ends At</span>
+                  <span className="font-bold" style={{ color: eandColors.oceanBlue }}>
+                    {formatCairoDateTime(currentSession.scheduledEnd)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span style={{ color: eandColors.grey }}>{tournament.design?.team1?.name || 'Team 1'} Score</span>
+                  <span className="font-bold text-xl" style={{ color: tournament.design?.team1?.color || eandColors.red }}>
                     {currentSession.team1FinalScore}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span style={{ color: eandColors.grey }}>Team 2 Score</span>
-                  <span className="font-bold text-xl" style={{ color: eandColors.oceanBlue }}>
+                  <span style={{ color: eandColors.grey }}>{tournament.design?.team2?.name || 'Team 2'} Score</span>
+                  <span className="font-bold text-xl" style={{ color: tournament.design?.team2?.color || eandColors.oceanBlue }}>
                     {currentSession.team2FinalScore}
                   </span>
                 </div>
@@ -291,15 +403,10 @@ export function TournamentDashboardPage() {
           {/* Top Players Leaderboard */}
           <div className="bg-white rounded-2xl p-6 shadow-lg">
             <div className="flex items-center gap-3 mb-6">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: `${eandColors.red}15` }}
-              >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${eandColors.red}15` }}>
                 <Trophy className="w-5 h-5" style={{ color: eandColors.red }} />
               </div>
-              <h2 className="text-xl font-bold" style={{ color: eandColors.oceanBlue }}>
-                Top Players
-              </h2>
+              <h2 className="text-xl font-bold" style={{ color: eandColors.oceanBlue }}>Top Players</h2>
             </div>
 
             {topPlayers.length > 0 ? (
@@ -320,15 +427,11 @@ export function TournamentDashboardPage() {
                       >
                         {index + 1}
                       </span>
-                      <span className="font-semibold" style={{ color: eandColors.oceanBlue }}>
-                        {player.playerName}
-                      </span>
+                      <span className="font-semibold" style={{ color: eandColors.oceanBlue }}>{player.playerName}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Award className="w-4 h-4" style={{ color: eandColors.brightGreen }} />
-                      <span className="font-bold" style={{ color: eandColors.brightGreen }}>
-                        {player.totalCredits} credits
-                      </span>
+                      <span className="font-bold" style={{ color: eandColors.brightGreen }}>{player.totalCredits} credits</span>
                     </div>
                   </div>
                 ))}
@@ -344,15 +447,10 @@ export function TournamentDashboardPage() {
         {/* Session History */}
         <div className="bg-white rounded-2xl p-6 shadow-lg mt-8">
           <div className="flex items-center gap-3 mb-6">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: `${eandColors.oceanBlue}15` }}
-            >
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${eandColors.oceanBlue}15` }}>
               <TrendingUp className="w-5 h-5" style={{ color: eandColors.oceanBlue }} />
             </div>
-            <h2 className="text-xl font-bold" style={{ color: eandColors.oceanBlue }}>
-              Session History
-            </h2>
+            <h2 className="text-xl font-bold" style={{ color: eandColors.oceanBlue }}>Session History</h2>
           </div>
 
           {sessions.length > 0 ? (
@@ -362,9 +460,9 @@ export function TournamentDashboardPage() {
                   <tr style={{ borderBottom: `2px solid ${eandColors.lightGrey}` }}>
                     <th className="text-left py-3 px-4" style={{ color: eandColors.grey }}>#</th>
                     <th className="text-left py-3 px-4" style={{ color: eandColors.grey }}>Status</th>
-                    <th className="text-left py-3 px-4" style={{ color: eandColors.grey }}>Scheduled</th>
-                    <th className="text-center py-3 px-4" style={{ color: eandColors.grey }}>Team 1</th>
-                    <th className="text-center py-3 px-4" style={{ color: eandColors.grey }}>Team 2</th>
+                    <th className="text-left py-3 px-4" style={{ color: eandColors.grey }}>Scheduled (Cairo)</th>
+                    <th className="text-center py-3 px-4" style={{ color: eandColors.grey }}>{tournament.design?.team1?.name || 'Team 1'}</th>
+                    <th className="text-center py-3 px-4" style={{ color: eandColors.grey }}>{tournament.design?.team2?.name || 'Team 2'}</th>
                     <th className="text-center py-3 px-4" style={{ color: eandColors.grey }}>Winner</th>
                   </tr>
                 </thead>
@@ -386,16 +484,22 @@ export function TournamentDashboardPage() {
                         </span>
                       </td>
                       <td className="py-3 px-4" style={{ color: eandColors.grey }}>
-                        {formatDate(session.scheduledStart)}
+                        {formatCairoDateTime(session.scheduledStart)}
                       </td>
-                      <td className="py-3 px-4 text-center font-bold" style={{ color: eandColors.red }}>
+                      <td className="py-3 px-4 text-center font-bold" style={{ color: tournament.design?.team1?.color || eandColors.red }}>
                         {session.team1FinalScore}
                       </td>
-                      <td className="py-3 px-4 text-center font-bold" style={{ color: eandColors.oceanBlue }}>
+                      <td className="py-3 px-4 text-center font-bold" style={{ color: tournament.design?.team2?.color || eandColors.oceanBlue }}>
                         {session.team2FinalScore}
                       </td>
                       <td className="py-3 px-4 text-center font-bold" style={{ color: eandColors.brightGreen }}>
-                        {session.winner ? session.winner.toUpperCase() : '-'}
+                        {session.winner
+                          ? session.winner === 'team1'
+                            ? tournament.design?.team1?.name || 'Team 1'
+                            : session.winner === 'team2'
+                            ? tournament.design?.team2?.name || 'Team 2'
+                            : 'Tie'
+                          : '-'}
                       </td>
                     </tr>
                   ))}
@@ -404,7 +508,7 @@ export function TournamentDashboardPage() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p style={{ color: eandColors.grey }}>No sessions yet</p>
+              <p style={{ color: eandColors.grey }}>No sessions yet. Start the tournament to generate sessions.</p>
             </div>
           )}
         </div>

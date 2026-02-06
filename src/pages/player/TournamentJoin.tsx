@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { tournamentService, type Tournament, type TournamentPlayer } from '../../services/tournamentService';
+import { tournamentService, type Tournament } from '../../services/tournamentService';
 import { useTournamentStore } from '../../stores/tournamentStore';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
 import { Loading } from '../../components/shared/Loading';
 import { eandColors } from '../../constants/eandColors';
 import { Trophy, Users, Calendar, Globe, CheckCircle } from 'lucide-react';
+import { formatCairoDate } from '../../utils/cairoTime';
 
 export function TournamentJoinPage() {
   const { tournamentId } = useParams<{ tournamentId: string }>();
@@ -83,13 +84,7 @@ export function TournamentJoinPage() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
+  const formatDate = (dateStr: string) => formatCairoDate(dateStr);
 
   if (isLoading) {
     return (

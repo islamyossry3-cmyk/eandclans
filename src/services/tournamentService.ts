@@ -1,6 +1,42 @@
 import { supabase } from '../lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+export interface TournamentQuestion {
+  id: string;
+  text: string;
+  options: Array<{ id: string; text: string }>;
+  correctAnswer: string;
+  timeLimit?: number;
+  points?: number;
+  category?: string;
+}
+
+export interface TournamentTeamDesign {
+  name: string;
+  color: string;
+  icon: string;
+}
+
+export interface TournamentDesign {
+  team1: TournamentTeamDesign;
+  team2: TournamentTeamDesign;
+  backgroundTheme: string;
+  brandingText?: string;
+  pointsPerCorrectAnswer: number;
+  timePerQuestion: number;
+  hexGridSize: number;
+}
+
+export const defaultTournamentDesign: TournamentDesign = {
+  team1: { name: 'Team 1', color: '#E00800', icon: '🔴' },
+  team2: { name: 'Team 2', color: '#003DA5', icon: '🔵' },
+  backgroundTheme: 'innovation',
+  brandingText: '',
+  pointsPerCorrectAnswer: 10,
+  timePerQuestion: 15,
+  hexGridSize: 18,
+};
+
 export interface Tournament {
   id: string;
   adminId: string;
@@ -14,6 +50,8 @@ export interface Tournament {
   maxPlayersPerTeam: number;
   status: 'scheduled' | 'active' | 'paused' | 'completed';
   questionBankId?: string;
+  questions: TournamentQuestion[];
+  design: TournamentDesign;
   config: Record<string, any>;
   createdAt: string;
   updatedAt: string;
@@ -62,6 +100,8 @@ export const tournamentService = {
     maxPlayersPerSession?: number;
     maxPlayersPerTeam?: number;
     questionBankId?: string;
+    questions?: TournamentQuestion[];
+    design?: TournamentDesign;
     config?: Record<string, any>;
   }): Promise<Tournament | null> {
     try {
@@ -78,6 +118,8 @@ export const tournamentService = {
           max_players_per_session: data.maxPlayersPerSession || 50,
           max_players_per_team: data.maxPlayersPerTeam || 25,
           question_bank_id: data.questionBankId,
+          questions: data.questions || [],
+          design: data.design || defaultTournamentDesign,
           config: data.config || {},
         })
         .select()
@@ -140,6 +182,8 @@ export const tournamentService = {
     name: string;
     description: string;
     status: 'scheduled' | 'active' | 'paused' | 'completed';
+    questions: TournamentQuestion[];
+    design: TournamentDesign;
     config: Record<string, any>;
   }>): Promise<boolean> {
     try {
@@ -150,6 +194,8 @@ export const tournamentService = {
       if (updates.name) dbUpdates.name = updates.name;
       if (updates.description !== undefined) dbUpdates.description = updates.description;
       if (updates.status) dbUpdates.status = updates.status;
+      if (updates.questions) dbUpdates.questions = updates.questions;
+      if (updates.design) dbUpdates.design = updates.design;
       if (updates.config) dbUpdates.config = updates.config;
 
       const { error } = await supabase
@@ -580,6 +626,8 @@ export const tournamentService = {
       maxPlayersPerTeam: data.max_players_per_team,
       status: data.status,
       questionBankId: data.question_bank_id,
+      questions: data.questions || [],
+      design: data.design || defaultTournamentDesign,
       config: data.config,
       createdAt: data.created_at,
       updatedAt: data.updated_at,

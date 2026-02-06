@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { tournamentService, type Tournament, type TournamentSession, type TournamentPlayer } from '../../services/tournamentService';
 import { gameService, type LiveGame, type GamePlayer, type HexTerritory } from '../../services/gameService';
 import { useTournamentStore } from '../../stores/tournamentStore';
+import { useTournamentScheduler } from '../../hooks/useTournamentScheduler';
 import { Loading } from '../../components/shared/Loading';
 import { Button } from '../../components/shared/Button';
 import { ToastContainer } from '../../components/shared/Toast';
@@ -60,6 +61,8 @@ export function TournamentPlayPage() {
   const [claimingTerritory, setClaimingTerritory] = useState(false);
   const [team, setTeam] = useState<'team1' | 'team2' | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(new Set());
+  const [allSessions, setAllSessions] = useState<TournamentSession[]>([]);
 
   useEffect(() => {
     if (!tournamentId) {
@@ -74,6 +77,18 @@ export function TournamentPlayPage() {
 
     loadTournamentData();
   }, [tournamentId, currentPlayer]);
+
+  // Auto session scheduler (player-side)
+  useTournamentScheduler({
+    tournament,
+    sessions: allSessions,
+    onSessionsChanged: useCallback(() => {
+      if (tournamentId) {
+        tournamentService.getTournamentSessions(tournamentId).then(setAllSessions);
+      }
+    }, [tournamentId]),
+    enabled: !!tournament && tournament.status === 'active',
+  });
 
   useEffect(() => {
     if (!tournament) return;
@@ -179,11 +194,10 @@ export function TournamentPlayPage() {
     setTournament(tournamentData);
     setCurrentTournament(tournamentData);
     setLeaderboard(playersData.sort((a, b) => b.totalCredits - a.totalCredits).slice(0, 10));
+    setAllSessions(sessionsData);
 
-    // Load questions from question bank if available
-    if (tournamentData.questionBankId) {
-      await loadQuestions(tournamentData.questionBankId);
-    }
+    // Load questions from tournament
+    loadQuestions(tournamentData);
 
     // Find active session
     const activeSession = sessionsData.find(s => s.status === 'active');
@@ -196,44 +210,21 @@ export function TournamentPlayPage() {
     setIsLoading(false);
   };
 
-  const loadQuestions = async (_questionBankId: string) => {
-    // Questions would be loaded from the question bank
-    // For now, use sample questions
-    setQuestions([
-      {
-        id: '1',
-        text: 'What is the capital of France?',
-        options: [
-          { id: 'A', text: 'London' },
-          { id: 'B', text: 'Paris' },
-          { id: 'C', text: 'Berlin' },
-          { id: 'D', text: 'Madrid' },
-        ],
-        correctAnswer: 'B',
-      },
-      {
-        id: '2',
-        text: 'Which planet is known as the Red Planet?',
-        options: [
-          { id: 'A', text: 'Venus' },
-          { id: 'B', text: 'Jupiter' },
-          { id: 'C', text: 'Mars' },
-          { id: 'D', text: 'Saturn' },
-        ],
-        correctAnswer: 'C',
-      },
-      {
-        id: '3',
-        text: 'What is 7 × 8?',
-        options: [
-          { id: 'A', text: '54' },
-          { id: 'B', text: '56' },
-          { id: 'C', text: '58' },
-          { id: 'D', text: '64' },
-        ],
-        correctAnswer: 'B',
-      },
-    ]);
+  const loadQuestions = (tournamentData: Tournament) => {
+    // Load questions directly from the tournament's questions field
+    if (tournamentData.questions && tournamentData.questions.length > 0) {
+      const mapped: Question[] = tournamentData.questions.map(q => ({
+        id: q.id,
+        text: q.text,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+      }));
+      // Shuffle questions for each player
+      const shuffled = [...mapped].sort(() => Math.random() - 0.5);
+      setQuestions(shuffled);
+    } else {
+      setQuestions([]);
+    }
   };
 
   const loadSessionGame = async (sessionData: TournamentSession) => {
@@ -277,7 +268,10 @@ export function TournamentPlayPage() {
     if (newPlayer) {
       setGamePlayer(newPlayer);
       setTeam(selectedTeam);
-      success(`Joined ${selectedTeam === 'team1' ? 'Team 1' : 'Team 2'}!`);
+      const teamName = selectedTeam === 'team1'
+        ? (tournament?.design?.team1?.name || 'Team 1')
+        : (tournament?.design?.team2?.name || 'Team 2');
+      success(`Joined ${teamName}!`);
     } else {
       showError('Failed to join team');
     }
@@ -309,6 +303,12 @@ export function TournamentPlayPage() {
     });
 
     if (isCorrect) {
+      // Update team score in live game
+      const pointsPerAnswer = tournament?.design?.pointsPerCorrectAnswer || 10;
+      if (team) {
+        await gameService.updateScore(liveGame.id, team, pointsPerAnswer);
+      }
+
       // Update tournament player stats and check for credit
       const result = await tournamentService.addCorrectAnswer(player.id);
       if (result.creditEarned) {
@@ -374,8 +374,12 @@ export function TournamentPlayPage() {
       return;
     }
 
-    const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+    // Get unanswered questions first, then allow repeats if all answered
+    const unanswered = questions.filter(q => !answeredQuestionIds.has(q.id));
+    const pool = unanswered.length > 0 ? unanswered : questions;
+    const randomQuestion = pool[Math.floor(Math.random() * pool.length)];
     setCurrentQuestion(randomQuestion);
+    setAnsweredQuestionIds(prev => new Set(prev).add(randomQuestion.id));
     setHasAnswered(false);
     setSelectedAnswer(null);
     setAnswerResult(null);
@@ -575,37 +579,49 @@ export function TournamentPlayPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => handleTeamSelect('team1')}
-                disabled={team1Count >= maxPerTeam}
-                className="p-6 rounded-2xl transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
-                style={{ backgroundColor: `${eandColors.red}20`, border: `3px solid ${eandColors.red}` }}
-              >
-                <div className="text-center">
-                  <div className="text-4xl mb-2">🔴</div>
-                  <h3 className="font-bold text-lg" style={{ color: eandColors.red }}>Team 1</h3>
-                  <div className="flex items-center justify-center gap-1 mt-2">
-                    <Users className="w-4 h-4" style={{ color: eandColors.grey }} />
-                    <span style={{ color: eandColors.grey }}>{team1Count}/{maxPerTeam}</span>
-                  </div>
-                </div>
-              </button>
+              {(() => {
+                const t1Color = tournament?.design?.team1?.color || eandColors.red;
+                const t2Color = tournament?.design?.team2?.color || eandColors.oceanBlue;
+                const t1Name = tournament?.design?.team1?.name || 'Team 1';
+                const t2Name = tournament?.design?.team2?.name || 'Team 2';
+                const t1Icon = tournament?.design?.team1?.icon || '🔴';
+                const t2Icon = tournament?.design?.team2?.icon || '🔵';
+                return (
+                  <>
+                    <button
+                      onClick={() => handleTeamSelect('team1')}
+                      disabled={team1Count >= maxPerTeam}
+                      className="p-6 rounded-2xl transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+                      style={{ backgroundColor: `${t1Color}20`, border: `3px solid ${t1Color}` }}
+                    >
+                      <div className="text-center">
+                        <div className="text-4xl mb-2">{t1Icon}</div>
+                        <h3 className="font-bold text-lg" style={{ color: t1Color }}>{t1Name}</h3>
+                        <div className="flex items-center justify-center gap-1 mt-2">
+                          <Users className="w-4 h-4" style={{ color: eandColors.grey }} />
+                          <span style={{ color: eandColors.grey }}>{team1Count}/{maxPerTeam}</span>
+                        </div>
+                      </div>
+                    </button>
 
-              <button
-                onClick={() => handleTeamSelect('team2')}
-                disabled={team2Count >= maxPerTeam}
-                className="p-6 rounded-2xl transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
-                style={{ backgroundColor: `${eandColors.oceanBlue}20`, border: `3px solid ${eandColors.oceanBlue}` }}
-              >
-                <div className="text-center">
-                  <div className="text-4xl mb-2">🔵</div>
-                  <h3 className="font-bold text-lg" style={{ color: eandColors.oceanBlue }}>Team 2</h3>
-                  <div className="flex items-center justify-center gap-1 mt-2">
-                    <Users className="w-4 h-4" style={{ color: eandColors.grey }} />
-                    <span style={{ color: eandColors.grey }}>{team2Count}/{maxPerTeam}</span>
-                  </div>
-                </div>
-              </button>
+                    <button
+                      onClick={() => handleTeamSelect('team2')}
+                      disabled={team2Count >= maxPerTeam}
+                      className="p-6 rounded-2xl transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+                      style={{ backgroundColor: `${t2Color}20`, border: `3px solid ${t2Color}` }}
+                    >
+                      <div className="text-center">
+                        <div className="text-4xl mb-2">{t2Icon}</div>
+                        <h3 className="font-bold text-lg" style={{ color: t2Color }}>{t2Name}</h3>
+                        <div className="flex items-center justify-center gap-1 mt-2">
+                          <Users className="w-4 h-4" style={{ color: eandColors.grey }} />
+                          <span style={{ color: eandColors.grey }}>{team2Count}/{maxPerTeam}</span>
+                        </div>
+                      </div>
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -627,7 +643,13 @@ export function TournamentPlayPage() {
 
   // Active session - Playing
   if (session && liveGame && team) {
-    const teamColor = team === 'team1' ? eandColors.red : eandColors.oceanBlue;
+    const t1Color = tournament?.design?.team1?.color || eandColors.red;
+    const t2Color = tournament?.design?.team2?.color || eandColors.oceanBlue;
+    const t1Name = tournament?.design?.team1?.name || 'Team 1';
+    const t2Name = tournament?.design?.team2?.name || 'Team 2';
+    const teamColor = team === 'team1' ? t1Color : t2Color;
+    const myTeamName = team === 'team1' ? t1Name : t2Name;
+    const opponentTeamName = team === 'team1' ? t2Name : t1Name;
     const myScore = team === 'team1' ? liveGame.team1Score : liveGame.team2Score;
     const opponentScore = team === 'team1' ? liveGame.team2Score : liveGame.team1Score;
 
@@ -648,10 +670,10 @@ export function TournamentPlayPage() {
           </div>
 
           <PlayerHexGrid
-            gridSize={18}
+            gridSize={tournament?.design?.hexGridSize || 18}
             territories={territories}
-            team1Color={eandColors.red}
-            team2Color={eandColors.oceanBlue}
+            team1Color={t1Color}
+            team2Color={t2Color}
             backgroundVideoUrl={undefined}
             islandImageUrl={undefined}
             availableTerritories={availableTerritories}
@@ -678,8 +700,8 @@ export function TournamentPlayPage() {
                   <span className="text-xl font-bold font-mono">{formatTime(timeRemaining)}</span>
                 </div>
                 <div className="flex items-center gap-4 text-sm">
-                  <span>Team: {myScore}</span>
-                  <span>Opponent: {opponentScore}</span>
+                  <span>{myTeamName}: {myScore}</span>
+                  <span>{opponentTeamName}: {opponentScore}</span>
                 </div>
               </div>
               <div className="flex items-center justify-between text-sm">
@@ -776,7 +798,7 @@ export function TournamentPlayPage() {
           <h1 className="text-2xl font-bold mb-2" style={{ color: eandColors.oceanBlue }}>
             Session #{session.sessionNumber}
           </h1>
-          <p className="mb-6" style={{ color: eandColors.grey }}>You're on {team === 'team1' ? 'Team 1' : 'Team 2'}</p>
+          <p className="mb-6" style={{ color: eandColors.grey }}>You're on {myTeamName}</p>
 
           <div className="rounded-xl p-4 mb-6" style={{ backgroundColor: eandColors.lightGrey }}>
             <div className="grid grid-cols-2 gap-4 text-center">
