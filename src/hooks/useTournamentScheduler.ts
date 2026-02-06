@@ -3,6 +3,42 @@ import type { Tournament, TournamentSession } from '../services/tournamentServic
 import { gameService } from '../services/gameService';
 import { supabase } from '../lib/supabase';
 
+/**
+ * Returns true if the current Cairo time falls within the allowed scheduling window.
+ * Checks active hours (e.g. 10:00-17:00) and excluded days (e.g. [5,6] = Fri/Sat).
+ */
+function isWithinSchedulingWindow(tournament: Tournament): boolean {
+  // Convert current UTC to Cairo time (UTC+2)
+  const now = new Date();
+  const cairoOffset = 2 * 60; // Cairo is UTC+2
+  const cairoTime = new Date(now.getTime() + cairoOffset * 60 * 1000);
+  const cairoDay = cairoTime.getUTCDay(); // 0=Sun..6=Sat
+  const cairoHour = cairoTime.getUTCHours();
+  const cairoMinute = cairoTime.getUTCMinutes();
+
+  // Check excluded days
+  const excludedDays = tournament.excludedDays || (tournament.config?.excludedDays as number[]) || [];
+  if (excludedDays.length > 0 && excludedDays.includes(cairoDay)) {
+    return false;
+  }
+
+  // Check active hours
+  const activeStart = tournament.activeHoursStart || (tournament.config?.activeHoursStart as string);
+  const activeEnd = tournament.activeHoursEnd || (tournament.config?.activeHoursEnd as string);
+  if (activeStart && activeEnd) {
+    const [startH, startM] = activeStart.split(':').map(Number);
+    const [endH, endM] = activeEnd.split(':').map(Number);
+    const currentMinutes = cairoHour * 60 + cairoMinute;
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    if (currentMinutes < startMinutes || currentMinutes >= endMinutes) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 interface SchedulerOptions {
   tournament: Tournament | null;
   sessions: TournamentSession[];
@@ -83,6 +119,12 @@ export function useTournamentScheduler({
 
       // 2. Check if a pending session should be activated
       if (!activeSession) {
+        // Skip activation if outside scheduling window (active hours / excluded days)
+        if (!isWithinSchedulingWindow(tournament)) {
+          processingRef.current = false;
+          return;
+        }
+
         const pendingSession = sessions.find(s => s.status === 'pending');
         if (pendingSession) {
           const startTime = new Date(pendingSession.scheduledStart).getTime();

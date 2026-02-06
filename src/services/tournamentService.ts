@@ -4,7 +4,8 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 export interface TournamentQuestion {
   id: string;
   text: string;
-  options: Array<{ id: string; text: string }>;
+  textAr?: string;
+  options: Array<{ id: string; text: string; textAr?: string }>;
   correctAnswer: string;
   timeLimit?: number;
   points?: number;
@@ -22,6 +23,7 @@ export interface TournamentDesign {
   team2: TournamentTeamDesign;
   backgroundTheme: string;
   brandingText?: string;
+  backgroundMusicUrl?: string;
   pointsPerCorrectAnswer: number;
   timePerQuestion: number;
   hexGridSize: number;
@@ -48,11 +50,14 @@ export interface Tournament {
   breakDurationSeconds: number;
   maxPlayersPerSession: number;
   maxPlayersPerTeam: number;
+  activeHoursStart?: string;
+  activeHoursEnd?: string;
+  excludedDays?: number[];
   status: 'scheduled' | 'active' | 'paused' | 'completed';
   questionBankId?: string;
   questions: TournamentQuestion[];
   design: TournamentDesign;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -99,12 +104,21 @@ export const tournamentService = {
     breakDurationSeconds?: number;
     maxPlayersPerSession?: number;
     maxPlayersPerTeam?: number;
+    activeHoursStart?: string;
+    activeHoursEnd?: string;
+    excludedDays?: number[];
     questionBankId?: string;
     questions?: TournamentQuestion[];
     design?: TournamentDesign;
-    config?: Record<string, any>;
+    config?: Record<string, unknown>;
   }): Promise<Tournament | null> {
     try {
+      const config = {
+        ...(data.config || {}),
+        activeHoursStart: data.activeHoursStart,
+        activeHoursEnd: data.activeHoursEnd,
+        excludedDays: data.excludedDays || [],
+      };
       const { data: tournament, error } = await supabase
         .from('tournaments')
         .insert({
@@ -120,7 +134,7 @@ export const tournamentService = {
           question_bank_id: data.questionBankId,
           questions: data.questions || [],
           design: data.design || defaultTournamentDesign,
-          config: data.config || {},
+          config,
         })
         .select()
         .single();
@@ -184,10 +198,10 @@ export const tournamentService = {
     status: 'scheduled' | 'active' | 'paused' | 'completed';
     questions: TournamentQuestion[];
     design: TournamentDesign;
-    config: Record<string, any>;
+    config: Record<string, unknown>;
   }>): Promise<boolean> {
     try {
-      const dbUpdates: Record<string, any> = {
+      const dbUpdates: Record<string, unknown> = {
         updated_at: new Date().toISOString(),
       };
       
@@ -612,25 +626,29 @@ export const tournamentService = {
   },
 
   // Mappers
-  mapDbToTournament(data: any): Tournament {
+  mapDbToTournament(data: Record<string, unknown>): Tournament {
+    const config = (data.config || {}) as Record<string, unknown>;
     return {
-      id: data.id,
-      adminId: data.admin_id,
-      name: data.name,
-      description: data.description,
-      startDate: data.start_date,
-      endDate: data.end_date,
-      sessionDurationSeconds: data.session_duration_seconds,
-      breakDurationSeconds: data.break_duration_seconds,
-      maxPlayersPerSession: data.max_players_per_session,
-      maxPlayersPerTeam: data.max_players_per_team,
-      status: data.status,
-      questionBankId: data.question_bank_id,
-      questions: data.questions || [],
-      design: data.design || defaultTournamentDesign,
-      config: data.config,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
+      id: data.id as string,
+      adminId: data.admin_id as string,
+      name: data.name as string,
+      description: data.description as string | undefined,
+      startDate: data.start_date as string,
+      endDate: data.end_date as string,
+      sessionDurationSeconds: data.session_duration_seconds as number,
+      breakDurationSeconds: data.break_duration_seconds as number,
+      maxPlayersPerSession: data.max_players_per_session as number,
+      maxPlayersPerTeam: data.max_players_per_team as number,
+      activeHoursStart: config.activeHoursStart as string | undefined,
+      activeHoursEnd: config.activeHoursEnd as string | undefined,
+      excludedDays: (config.excludedDays as number[] | undefined) || [],
+      status: data.status as Tournament['status'],
+      questionBankId: data.question_bank_id as string | undefined,
+      questions: (data.questions as TournamentQuestion[]) || [],
+      design: (data.design as TournamentDesign) || defaultTournamentDesign,
+      config,
+      createdAt: data.created_at as string,
+      updatedAt: data.updated_at as string,
     };
   },
 
@@ -652,19 +670,19 @@ export const tournamentService = {
     };
   },
 
-  mapDbToTournamentPlayer(data: any): TournamentPlayer {
+  mapDbToTournamentPlayer(data: Record<string, unknown>): TournamentPlayer {
     return {
-      id: data.id,
-      tournamentId: data.tournament_id,
-      playerName: data.player_name,
-      email: data.email,
-      preferredLanguage: data.preferred_language,
-      totalCredits: data.total_credits,
-      totalCorrectAnswers: data.total_correct_answers,
-      totalTerritoriesClaimed: data.total_territories_claimed,
-      sessionsPlayed: data.sessions_played,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
+      id: data.id as string,
+      tournamentId: data.tournament_id as string,
+      playerName: data.player_name as string,
+      email: data.email as string | undefined,
+      preferredLanguage: data.preferred_language as 'en' | 'ar',
+      totalCredits: data.total_credits as number,
+      totalCorrectAnswers: data.total_correct_answers as number,
+      totalTerritoriesClaimed: data.total_territories_claimed as number,
+      sessionsPlayed: data.sessions_played as number,
+      createdAt: data.created_at as string,
+      updatedAt: data.updated_at as string,
     };
   },
 };

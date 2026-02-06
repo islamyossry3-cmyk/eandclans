@@ -24,7 +24,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   fetchSessions: async (adminId: string) => {
     set({ isLoading: true, error: null });
-    const sessions = await sessionService.getSessionsByAdmin(adminId);
+    const allSessions = await sessionService.getSessionsByAdmin(adminId);
+    // Filter out auto-generated tournament sessions
+    const sessions = allSessions.filter(s => !s.name.startsWith('tournament-'));
     set({ sessions, isLoading: false });
   },
 

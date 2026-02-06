@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { tournamentService, defaultTournamentDesign } from '../../services/tournamentService';
@@ -8,8 +8,15 @@ import { Input } from '../../components/shared/Input';
 import { eandColors } from '../../constants/eandColors';
 import { cairoToUTC } from '../../utils/cairoTime';
 import {
+  parseTournamentCSV, mergeArabicCSV,
+  generateSampleEnglishCSV, generateSampleArabicCSV, downloadCSV,
+} from '../../utils/tournamentCsvParser';
+import { useToast } from '../../hooks/useToast';
+import { ToastContainer } from '../../components/shared/Toast';
+import {
   Trophy, Calendar, Clock, Users, ArrowLeft, ArrowRight, Save,
-  Palette, HelpCircle, Plus, Trash2, Check, FileText
+  Palette, HelpCircle, Plus, Trash2, Check, FileText,
+  Upload, Download, Music, AlertCircle, Volume2
 } from 'lucide-react';
 
 type Step = 'basic' | 'schedule' | 'players' | 'design' | 'questions' | 'review';
@@ -25,12 +32,20 @@ const THEME_OPTIONS = [
 
 const ICON_OPTIONS = ['🔴', '🔵', '🟢', '🟡', '🟣', '🏰', '🏯', '⚔️', '🛡️', '🦁', '🦅', '🐉', '🔥', '⚡', '💎', '👑'];
 
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 export function TournamentBuilderPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState<Step>('basic');
+  const [uploadingMusic, setUploadingMusic] = useState(false);
+
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const arabicCsvInputRef = useRef<HTMLInputElement>(null);
+  const musicInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -43,11 +58,106 @@ export function TournamentBuilderPage() {
     breakDuration: 2,
     maxPlayersPerSession: 50,
     maxPlayersPerTeam: 25,
+    activeHoursStart: '09:00',
+    activeHoursEnd: '17:00',
+    useActiveHours: false,
+    excludedDays: [] as number[],
   });
 
   const [design, setDesign] = useState<TournamentDesign>({ ...defaultTournamentDesign });
   const [questions, setQuestions] = useState<TournamentQuestion[]>([]);
   const [editingQuestion, setEditingQuestion] = useState<TournamentQuestion | null>(null);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // CSV handlers
+  const handleEnglishCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      const result = parseTournamentCSV(content);
+      if (result.success && result.questions && result.questions.length > 0) {
+        setQuestions(prev => [...prev, ...result.questions!]);
+        toastSuccess(`Imported ${result.questions.length} questions`);
+      } else if (result.errors?.length) {
+        toastError(`Import failed: ${result.errors[0]}`);
+      } else {
+        toastError('No valid questions found in CSV');
+      }
+    };
+    reader.readAsText(file);
+    if (csvInputRef.current) csvInputRef.current.value = '';
+  };
+
+  const handleArabicCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (questions.length === 0) {
+      toastError('Import English questions first, then add Arabic translations');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      const result = mergeArabicCSV(content, questions);
+      if (result.questions) {
+        setQuestions(result.questions);
+        toastSuccess('Arabic translations merged successfully');
+        if (result.errors?.length) {
+          toastError(result.errors[0]);
+        }
+      } else if (result.errors?.length) {
+        toastError(`Import failed: ${result.errors[0]}`);
+      }
+    };
+    reader.readAsText(file);
+    if (arabicCsvInputRef.current) arabicCsvInputRef.current.value = '';
+  };
+
+  // Music upload handler
+  const handleMusicUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg'];
+    if (!allowedTypes.includes(file.type)) {
+      toastError('Please upload an audio file (MP3, WAV, or OGG)');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toastError('Audio file must be less than 20MB');
+      return;
+    }
+    setUploadingMusic(true);
+    try {
+      const { supabase } = await import('../../lib/supabase');
+      const fileName = `music/${crypto.randomUUID()}-${file.name}`;
+      const { data, error: uploadError } = await supabase.storage
+        .from('session-files')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from('session-files')
+        .getPublicUrl(data.path);
+      setDesign(prev => ({ ...prev, backgroundMusicUrl: publicUrl }));
+      toastSuccess('Music uploaded successfully');
+    } catch {
+      toastError('Failed to upload music');
+    } finally {
+      setUploadingMusic(false);
+      if (musicInputRef.current) musicInputRef.current.value = '';
+    }
+  };
+
+  const toggleExcludedDay = (day: number) => {
+    setFormData(prev => ({
+      ...prev,
+      excludedDays: prev.excludedDays.includes(day)
+        ? prev.excludedDays.filter(d => d !== day)
+        : [...prev.excludedDays, day],
+    }));
+  };
 
   const steps: Step[] = ['basic', 'schedule', 'players', 'design', 'questions', 'review'];
   const stepLabels: Record<Step, string> = {
@@ -139,6 +249,12 @@ export function TournamentBuilderPage() {
       return;
     }
 
+    if (formData.startDate < todayStr) {
+      setError('Start date cannot be in the past');
+      setCurrentStep('schedule');
+      return;
+    }
+
     if (questions.length === 0) {
       setError('Add at least one question');
       setCurrentStep('questions');
@@ -166,6 +282,9 @@ export function TournamentBuilderPage() {
       breakDurationSeconds: formData.breakDuration * 60,
       maxPlayersPerSession: formData.maxPlayersPerSession,
       maxPlayersPerTeam: formData.maxPlayersPerTeam,
+      activeHoursStart: formData.useActiveHours ? formData.activeHoursStart : undefined,
+      activeHoursEnd: formData.useActiveHours ? formData.activeHoursEnd : undefined,
+      excludedDays: formData.excludedDays.length > 0 ? formData.excludedDays : undefined,
       questions,
       design,
     });
@@ -271,7 +390,7 @@ export function TournamentBuilderPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>Start Date *</label>
-            <Input type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} />
+            <Input type="date" min={todayStr} value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} />
           </div>
           <div>
             <label className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>Start Time *</label>
@@ -279,7 +398,7 @@ export function TournamentBuilderPage() {
           </div>
           <div>
             <label className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>End Date *</label>
-            <Input type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} />
+            <Input type="date" min={formData.startDate || todayStr} value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} />
           </div>
           <div>
             <label className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>End Time *</label>
@@ -320,6 +439,80 @@ export function TournamentBuilderPage() {
             Sessions auto-cycle every {formData.sessionDuration + formData.breakDuration} min ({formData.sessionDuration} min battle + {formData.breakDuration} min break)
           </p>
         </div>
+      </div>
+
+      {/* Active Hours Window */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${eandColors.mauve}15` }}>
+              <Clock className="w-5 h-5" style={{ color: eandColors.mauve }} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold" style={{ color: eandColors.oceanBlue }}>Daily Active Hours</h2>
+              <p className="text-xs" style={{ color: eandColors.grey }}>Restrict sessions to specific hours each day</p>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.useActiveHours}
+              onChange={(e) => setFormData({ ...formData, useActiveHours: e.target.checked })}
+              className="w-5 h-5 rounded"
+            />
+            <span className="text-sm font-semibold" style={{ color: eandColors.oceanBlue }}>Enable</span>
+          </label>
+        </div>
+        {formData.useActiveHours && (
+          <div className="grid grid-cols-2 gap-4 mt-4 p-4 rounded-xl" style={{ backgroundColor: `${eandColors.oceanBlue}05` }}>
+            <div>
+              <label className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>Start Hour (Cairo)</label>
+              <Input type="time" value={formData.activeHoursStart} onChange={(e) => setFormData({ ...formData, activeHoursStart: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>End Hour (Cairo)</label>
+              <Input type="time" value={formData.activeHoursEnd} onChange={(e) => setFormData({ ...formData, activeHoursEnd: e.target.value })} />
+            </div>
+            <p className="col-span-2 text-xs" style={{ color: eandColors.grey }}>
+              Sessions will only run between {formData.activeHoursStart} and {formData.activeHoursEnd} Cairo time each day
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Excluded Days */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${eandColors.sandRed}15` }}>
+            <Calendar className="w-5 h-5" style={{ color: eandColors.sandRed }} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold" style={{ color: eandColors.oceanBlue }}>Excluded Days</h2>
+            <p className="text-xs" style={{ color: eandColors.grey }}>Skip sessions on specific days of the week</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {DAY_NAMES.map((name, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => toggleExcludedDay(index)}
+              className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              style={{
+                backgroundColor: formData.excludedDays.includes(index) ? `${eandColors.red}15` : eandColors.lightGrey,
+                color: formData.excludedDays.includes(index) ? eandColors.red : eandColors.oceanBlue,
+                border: formData.excludedDays.includes(index) ? `2px solid ${eandColors.red}` : '2px solid transparent',
+              }}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+        {formData.excludedDays.length > 0 && (
+          <p className="text-xs mt-3" style={{ color: eandColors.grey }}>
+            No sessions will run on: {formData.excludedDays.map(d => DAY_NAMES[d]).join(', ')}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -510,13 +703,41 @@ export function TournamentBuilderPage() {
           </div>
         </div>
       </div>
+
+      {/* Background Music */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${eandColors.burgundy}15` }}>
+            <Music className="w-5 h-5" style={{ color: eandColors.burgundy }} />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold" style={{ color: eandColors.oceanBlue }}>Background Music</h3>
+            <p className="text-xs" style={{ color: eandColors.grey }}>MP3, WAV, or OGG (max 20MB)</p>
+          </div>
+        </div>
+        <input type="file" accept=".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg" onChange={handleMusicUpload} ref={musicInputRef} className="hidden" />
+        <div className="flex items-center gap-4">
+          <Button variant="secondary" size="sm" onClick={() => musicInputRef.current?.click()} disabled={uploadingMusic}>
+            <Upload className="w-4 h-4" /> {uploadingMusic ? 'Uploading...' : 'Upload Music'}
+          </Button>
+          {design.backgroundMusicUrl && (
+            <div className="flex items-center gap-2">
+              <Volume2 className="w-4 h-4" style={{ color: eandColors.brightGreen }} />
+              <span className="text-sm" style={{ color: eandColors.brightGreen }}>Music uploaded</span>
+              <button type="button" onClick={() => setDesign(prev => ({ ...prev, backgroundMusicUrl: undefined }))} className="p-1 rounded hover:bg-red-50">
+                <Trash2 className="w-4 h-4" style={{ color: eandColors.red }} />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 
   const renderQuestionsStep = () => (
     <div className="space-y-6">
       <div className="bg-white rounded-2xl p-6 shadow-lg">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${eandColors.brightGreen}15` }}>
               <HelpCircle className="w-5 h-5" style={{ color: eandColors.brightGreen }} />
@@ -527,8 +748,40 @@ export function TournamentBuilderPage() {
             </div>
           </div>
           <Button onClick={handleAddQuestion} size="sm" variant="success" className="flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Add Question
+            <Plus className="w-4 h-4" /> Add
           </Button>
+        </div>
+
+        {/* CSV Import Section */}
+        <div className="p-4 rounded-xl mb-4" style={{ backgroundColor: `${eandColors.oceanBlue}06`, border: `1px solid ${eandColors.oceanBlue}15` }}>
+          <div className="flex items-start gap-3 mb-3">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: eandColors.oceanBlue }} />
+            <div className="text-sm" style={{ color: eandColors.oceanBlue }}>
+              <p className="font-semibold mb-1">Import from CSV</p>
+              <p>Upload English questions CSV, then optionally upload an Arabic translations CSV (matched by row order).</p>
+            </div>
+          </div>
+          <input ref={csvInputRef} type="file" accept=".csv" onChange={handleEnglishCSVUpload} className="hidden" />
+          <input ref={arabicCsvInputRef} type="file" accept=".csv" onChange={handleArabicCSVUpload} className="hidden" />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" onClick={() => csvInputRef.current?.click()}>
+              <Upload className="w-3.5 h-3.5" /> English CSV
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => arabicCsvInputRef.current?.click()} disabled={questions.length === 0}>
+              <Upload className="w-3.5 h-3.5" /> Arabic CSV
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => downloadCSV(generateSampleEnglishCSV(), 'sample-questions-en.csv')}>
+              <Download className="w-3.5 h-3.5" /> Sample EN
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => downloadCSV(generateSampleArabicCSV(), 'sample-questions-ar.csv')}>
+              <Download className="w-3.5 h-3.5" /> Sample AR
+            </Button>
+          </div>
+          {questions.length > 0 && questions.some(q => q.textAr) && (
+            <p className="text-xs mt-2" style={{ color: eandColors.brightGreen }}>
+              ✓ Arabic translations loaded for {questions.filter(q => q.textAr).length}/{questions.length} questions
+            </p>
+          )}
         </div>
 
         {questions.length === 0 && !editingQuestion && (
@@ -716,6 +969,7 @@ export function TournamentBuilderPage() {
 
   return (
     <div className="min-h-screen p-6" style={{ backgroundColor: eandColors.lightGrey }}>
+      <ToastContainer toasts={toasts} onClose={removeToast} />
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">

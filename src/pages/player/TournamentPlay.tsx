@@ -21,11 +21,13 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 interface QuestionOption {
   id: string;
   text: string;
+  textAr?: string;
 }
 
 interface Question {
   id: string;
   text: string;
+  textAr?: string;
   options: QuestionOption[];
   correctAnswer: string;
 }
@@ -216,7 +218,8 @@ export function TournamentPlayPage() {
       const mapped: Question[] = tournamentData.questions.map(q => ({
         id: q.id,
         text: q.text,
-        options: q.options,
+        textAr: q.textAr,
+        options: q.options.map(o => ({ id: o.id, text: o.text, textAr: o.textAr })),
         correctAnswer: q.correctAnswer,
       }));
       // Shuffle questions for each player
@@ -226,6 +229,11 @@ export function TournamentPlayPage() {
       setQuestions([]);
     }
   };
+
+  // Helper: get display text based on player's preferred language
+  const isArabic = player?.preferredLanguage === 'ar';
+  const getQuestionText = (q: Question) => (isArabic && q.textAr) ? q.textAr : q.text;
+  const getOptionText = (o: QuestionOption) => (isArabic && o.textAr) ? o.textAr : o.text;
 
   const loadSessionGame = async (sessionData: TournamentSession) => {
     if (!sessionData.liveGameId) return;
@@ -737,8 +745,8 @@ export function TournamentPlayPage() {
                 </div>
               ) : (
                 <>
-                  <h2 className="text-xl font-bold mb-6" style={{ color: eandColors.oceanBlue }}>
-                    {currentQuestion.text}
+                  <h2 className={`text-xl font-bold mb-6 ${isArabic ? 'text-right' : ''}`} dir={isArabic ? 'rtl' : 'ltr'} style={{ color: eandColors.oceanBlue }}>
+                    {getQuestionText(currentQuestion)}
                   </h2>
 
                   <div className="space-y-3 mb-6">
@@ -760,7 +768,7 @@ export function TournamentPlayPage() {
                           >
                             {option.id}
                           </span>
-                          <span className="font-medium" style={{ color: eandColors.oceanBlue }}>{option.text}</span>
+                          <span className="font-medium" dir={isArabic ? 'rtl' : 'ltr'} style={{ color: eandColors.oceanBlue }}>{getOptionText(option)}</span>
                         </div>
                       </button>
                     ))}
