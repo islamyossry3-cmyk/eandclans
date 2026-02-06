@@ -85,11 +85,13 @@ export function HexGrid({
   timeRemaining,
   backgroundVideoUrl,
   islandImageUrl,
-  onRestart,
-  showRestartButton = false
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onRestart: _onRestart,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  showRestartButton: _showRestartButton = false
 }: HexGridProps) {
   const territoryMap = new Map(territories.map((t) => [t.hexId, t]));
-  const [hoveredHex, setHoveredHex] = useState<string | null>(null);
+  const [, setHoveredHex] = useState<string | null>(null);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -115,23 +117,17 @@ export function HexGrid({
     return 'transparent';
   };
 
-  const getHexStroke = (hexId: string, ring: string) => {
+  const getHexStroke = () => {
     return '#ffffff';
   };
 
-  const getStrokeWidth = (ring: string) => {
+  const getStrokeWidth = () => {
     return 1;
   };
 
   const getHexOpacity = (hexId: string) => {
     const territory = territoryMap.get(hexId);
-    return territory ? 0.75 : 0.15;
-  };
-
-  const getRingName = (hexId: string): string => {
-    if (hexId.startsWith('hex-1-')) return 'ring1';
-    if (hexId.startsWith('hex-2-')) return 'ring2';
-    return 'ring3';
+    return territory ? 0.85 : 0.12;
   };
 
   const hexagons = getHexagonsForSize();
@@ -217,12 +213,11 @@ export function HexGrid({
 
         /* Center Hex - Reserved for game controls, never selectable */
         .center-hex {
-          stroke-dasharray: 10, 5;
           cursor: default;
           pointer-events: none;
           fill: none;
-          stroke: rgba(0, 0, 0, 0.8);
-          stroke-width: 4;
+          stroke: transparent;
+          stroke-width: 0;
         }
 
         /* Center Content - Positioned over center hexagon */
@@ -348,7 +343,6 @@ export function HexGrid({
 
           {/* Territory Hexagons */}
           {hexagons.map((hex) => {
-            const ring = getRingName(hex.id);
             const territory = territoryMap.get(hex.id);
             return (
               <polygon
@@ -357,10 +351,10 @@ export function HexGrid({
                 points={hex.points}
                 fill={territory ? getHexFill(hex.id) : '#ffffff'}
                 fillOpacity={getHexOpacity(hex.id)}
-                stroke={getHexStroke(hex.id, ring)}
-                strokeWidth={getStrokeWidth(ring)}
+                stroke={getHexStroke()}
+                strokeWidth={getStrokeWidth()}
                 strokeOpacity={0.6}
-                style={territory ? { mixBlendMode: 'screen' } as React.CSSProperties : undefined}
+                style={territory ? { mixBlendMode: 'normal' } as React.CSSProperties : { mixBlendMode: 'overlay' } as React.CSSProperties}
                 onMouseEnter={() => setHoveredHex(hex.id)}
                 onMouseLeave={() => setHoveredHex(null)}
                 aria-label={`Territory ${hex.id}${territoryMap.has(hex.id) ? ` - owned by ${territoryMap.get(hex.id)?.owner}` : ' - unclaimed'}`}
@@ -386,40 +380,52 @@ export function HexGrid({
         {/* Team 1 Card - Left Side */}
         <div style={{
           position: 'absolute',
-          top: '30%',
-          left: '5%',
+          top: '50%',
+          left: '2%',
           transform: 'translateY(-50%)',
           zIndex: 10,
           pointerEvents: 'none',
-          background: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '20px',
-          padding: '24px',
-          minWidth: '220px',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          border: `4px solid ${team1Color}`
+          background: `linear-gradient(160deg, ${team1Color}ee 0%, ${team1Color}bb 60%, ${team1Color}88 100%)`,
+          backdropFilter: 'blur(12px)',
+          borderRadius: '24px',
+          padding: '20px 24px',
+          minWidth: '180px',
+          maxWidth: '200px',
+          boxShadow: `0 0 30px ${team1Color}60, 0 8px 32px rgba(0,0,0,0.4)`,
+          border: `3px solid rgba(255,255,255,0.4)`,
         }}>
           <div style={{ textAlign: 'center' }}>
-            <TeamIcon icon={team1Icon} size="2xl" className="!w-32 !h-32 mb-3" style={{ color: team1Color, fontSize: '8rem' }} />
+            <div style={{
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: '16px',
+              padding: '10px',
+              marginBottom: '12px',
+              display: 'inline-block',
+            }}>
+              <TeamIcon icon={team1Icon} size="xl" />
+            </div>
             <h3 style={{
-              fontSize: '28px',
+              fontSize: '18px',
               fontWeight: 900,
-              color: '#2C3E50',
-              marginBottom: '8px',
-              fontFamily: "'Black Ops One', 'Arial Black', sans-serif"
+              color: '#fff',
+              marginBottom: '4px',
+              fontFamily: "'Black Ops One', 'Arial Black', sans-serif",
+              textShadow: '0 2px 8px rgba(0,0,0,0.4)',
             }}>{team1Name}</h3>
             <p style={{
-              fontSize: '16px',
-              color: '#666',
-              marginBottom: '12px',
-              fontWeight: 600
+              fontSize: '11px',
+              color: 'rgba(255,255,255,0.7)',
+              marginBottom: '6px',
+              fontWeight: 700,
+              letterSpacing: '2px',
             }}>SCORE</p>
             <p style={{
-              fontSize: '64px',
+              fontSize: '48px',
               fontWeight: 900,
-              color: team1Color,
+              color: '#fff',
               lineHeight: 1,
-              fontFamily: "'Black Ops One', 'Arial Black', sans-serif"
+              fontFamily: "'Black Ops One', 'Arial Black', sans-serif",
+              textShadow: '0 2px 12px rgba(0,0,0,0.5)',
             }}>{team1Score}</p>
           </div>
         </div>
@@ -427,40 +433,52 @@ export function HexGrid({
         {/* Team 2 Card - Right Side */}
         <div style={{
           position: 'absolute',
-          top: '30%',
-          right: '5%',
+          top: '50%',
+          right: '2%',
           transform: 'translateY(-50%)',
           zIndex: 10,
           pointerEvents: 'none',
-          background: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '20px',
-          padding: '24px',
-          minWidth: '220px',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          border: `4px solid ${team2Color}`
+          background: `linear-gradient(200deg, ${team2Color}ee 0%, ${team2Color}bb 60%, ${team2Color}88 100%)`,
+          backdropFilter: 'blur(12px)',
+          borderRadius: '24px',
+          padding: '20px 24px',
+          minWidth: '180px',
+          maxWidth: '200px',
+          boxShadow: `0 0 30px ${team2Color}60, 0 8px 32px rgba(0,0,0,0.4)`,
+          border: `3px solid rgba(255,255,255,0.4)`,
         }}>
           <div style={{ textAlign: 'center' }}>
-            <TeamIcon icon={team2Icon} size="2xl" className="!w-32 !h-32 mb-3" style={{ color: team2Color, fontSize: '8rem' }} />
+            <div style={{
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: '16px',
+              padding: '10px',
+              marginBottom: '12px',
+              display: 'inline-block',
+            }}>
+              <TeamIcon icon={team2Icon} size="xl" />
+            </div>
             <h3 style={{
-              fontSize: '28px',
+              fontSize: '18px',
               fontWeight: 900,
-              color: '#2C3E50',
-              marginBottom: '8px',
-              fontFamily: "'Black Ops One', 'Arial Black', sans-serif"
+              color: '#fff',
+              marginBottom: '4px',
+              fontFamily: "'Black Ops One', 'Arial Black', sans-serif",
+              textShadow: '0 2px 8px rgba(0,0,0,0.4)',
             }}>{team2Name}</h3>
             <p style={{
-              fontSize: '16px',
-              color: '#666',
-              marginBottom: '12px',
-              fontWeight: 600
+              fontSize: '11px',
+              color: 'rgba(255,255,255,0.7)',
+              marginBottom: '6px',
+              fontWeight: 700,
+              letterSpacing: '2px',
             }}>SCORE</p>
             <p style={{
-              fontSize: '64px',
+              fontSize: '48px',
               fontWeight: 900,
-              color: team2Color,
+              color: '#fff',
               lineHeight: 1,
-              fontFamily: "'Black Ops One', 'Arial Black', sans-serif"
+              fontFamily: "'Black Ops One', 'Arial Black', sans-serif",
+              textShadow: '0 2px 12px rgba(0,0,0,0.5)',
             }}>{team2Score}</p>
           </div>
         </div>
