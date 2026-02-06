@@ -69,7 +69,7 @@ export function Button({
       className={`${baseStyles} ${sizes[size]} ${className}`}
       style={{ ...variantStyles[variant], ...style }}
       disabled={isDisabled}
-      {...(props as any)}
+      {...props}
     >
       {isLoading ? (
         <>

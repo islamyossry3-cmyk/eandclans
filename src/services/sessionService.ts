@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase';
-import type { Session, Question } from '../types/session';
+import type { Session } from '../types/session';
+
+type DbRow = Record<string, unknown>;
 
 function generateSessionPin(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -66,7 +68,7 @@ export const sessionService = {
 
   async updateSession(sessionId: string, data: Partial<Session>): Promise<{ success: boolean; session?: Session; error?: string }> {
     try {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         name: data.name,
         description: data.description,
         status: data.status,
@@ -241,49 +243,52 @@ export const sessionService = {
     return channel;
   },
 
-  mapDbToSession(dbSession: any): Session {
+  mapDbToSession(dbSession: DbRow): Session {
+    const questionsValue = dbSession.questions;
+    const parsedQuestions = typeof questionsValue === 'string'
+      ? JSON.parse(questionsValue)
+      : questionsValue;
+
     return {
-      id: dbSession.id,
-      adminId: dbSession.admin_id,
-      name: dbSession.name,
-      description: dbSession.description,
-      type: dbSession.type,
-      status: dbSession.status,
-      sessionPin: dbSession.session_pin,
-      qrCodeData: dbSession.qr_code_data,
+      id: dbSession.id as string,
+      adminId: dbSession.admin_id as string,
+      name: dbSession.name as string,
+      description: dbSession.description as string | undefined,
+      type: dbSession.type as Session['type'],
+      status: dbSession.status as Session['status'],
+      sessionPin: dbSession.session_pin as string,
+      qrCodeData: dbSession.qr_code_data as string | undefined,
       config: {
-        duration: dbSession.config_duration,
-        maxPlayersPerTeam: dbSession.config_max_players_per_team,
-        hexGridSize: dbSession.config_hex_grid_size,
-        timePerQuestion: dbSession.config_time_per_question,
-        pointsPerCorrectAnswer: dbSession.config_points_per_correct_answer,
-        allowSkip: dbSession.config_allow_skip,
+        duration: dbSession.config_duration as number,
+        maxPlayersPerTeam: dbSession.config_max_players_per_team as number,
+        hexGridSize: dbSession.config_hex_grid_size as number,
+        timePerQuestion: dbSession.config_time_per_question as number,
+        pointsPerCorrectAnswer: dbSession.config_points_per_correct_answer as number,
+        allowSkip: dbSession.config_allow_skip as boolean,
       },
       design: {
         team1: {
-          name: dbSession.design_team1_name,
-          color: dbSession.design_team1_color,
-          icon: dbSession.design_team1_icon,
+          name: dbSession.design_team1_name as string,
+          color: dbSession.design_team1_color as string,
+          icon: dbSession.design_team1_icon as string,
         },
         team2: {
-          name: dbSession.design_team2_name,
-          color: dbSession.design_team2_color,
-          icon: dbSession.design_team2_icon,
+          name: dbSession.design_team2_name as string,
+          color: dbSession.design_team2_color as string,
+          icon: dbSession.design_team2_icon as string,
         },
-        backgroundTheme: dbSession.design_background_theme,
-        customBackgroundUrl: dbSession.design_custom_background_url,
-        logoUrl: dbSession.design_logo_url,
-        brandingText: dbSession.design_branding_text,
+        backgroundTheme: dbSession.design_background_theme as string,
+        customBackgroundUrl: dbSession.design_custom_background_url as string | undefined,
+        logoUrl: dbSession.design_logo_url as string | undefined,
+        brandingText: dbSession.design_branding_text as string | undefined,
       },
-      questions: typeof dbSession.questions === 'string'
-        ? JSON.parse(dbSession.questions)
-        : dbSession.questions,
-      postGameFileUrl: dbSession.post_game_file_url,
-      backgroundMusicUrl: dbSession.background_music_url,
-      autoRestart: dbSession.auto_restart,
-      restartDelay: dbSession.restart_delay,
-      createdAt: dbSession.created_at,
-      updatedAt: dbSession.updated_at,
+      questions: parsedQuestions as Session['questions'],
+      postGameFileUrl: dbSession.post_game_file_url as string | undefined,
+      backgroundMusicUrl: dbSession.background_music_url as string | undefined,
+      autoRestart: dbSession.auto_restart as boolean | undefined,
+      restartDelay: dbSession.restart_delay as number | undefined,
+      createdAt: dbSession.created_at as string,
+      updatedAt: dbSession.updated_at as string,
     };
   },
 };

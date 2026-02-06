@@ -108,8 +108,8 @@ export function PlayerHexGrid({
     if (territory) {
       return territory.owner === 'team1' ? team1Color : team2Color;
     }
-    // Unclaimed, not available: completely invisible
-    return 'transparent';
+    // Slim white outline for unclaimed hexes
+    return '#ffffff';
   };
 
   const getStrokeWidth = (hexId: string) => {
@@ -123,18 +123,19 @@ export function PlayerHexGrid({
     if (territory) {
       return 2;
     }
-    // Unclaimed, not available: no outline
-    return 0;
+    // Slim default outline
+    return 0.5;
   };
 
   const getHexOpacity = (hexId: string) => {
     const territory = territoryMap.get(hexId);
-    // Opponent territories that are re-capturable pulse with lower opacity
+    // Opponent territories that are re-capturable
     if (territory && availableTerritories.includes(hexId)) return 0.45;
     if (territory) return 0.7;
-    // Unclaimed non-available: fully invisible
-    if (!availableTerritories.includes(hexId)) return 0;
-    return 0.15;
+    // Available to claim: subtle highlight
+    if (availableTerritories.includes(hexId)) return 0.15;
+    // Unclaimed default: transparent fill, outline only
+    return 0;
   };
 
   const isClickable = (hexId: string) => {
@@ -381,14 +382,14 @@ export function PlayerHexGrid({
                 fillOpacity={getHexOpacity(hex.id)}
                 stroke={getHexStroke(hex.id)}
                 strokeWidth={getStrokeWidth(hex.id)}
-                strokeOpacity={availableTerritories.includes(hex.id) ? 1 : 0.6}
+                strokeOpacity={territory ? 0.8 : availableTerritories.includes(hex.id) ? 1 : 0.25}
                 onMouseEnter={() => clickable && setHoveredHex(hex.id)}
                 onMouseLeave={() => setHoveredHex(null)}
                 onClick={() => handleHexClick(hex.id)}
                 aria-label={`Territory ${hex.id}${territoryMap.has(hex.id) ? ` - owned by ${territoryMap.get(hex.id)?.owner}${availableTerritories.includes(hex.id) ? ' - tap to re-capture' : ''}` : availableTerritories.includes(hex.id) ? ' - available to claim' : ' - unclaimed'}`}
                 style={{
                   cursor: clickable ? 'pointer' : 'default',
-                  mixBlendMode: territory ? 'screen' : 'normal'
+                  mixBlendMode: (territory || clickable) ? 'normal' : 'overlay'
                 }}
               />
             );
