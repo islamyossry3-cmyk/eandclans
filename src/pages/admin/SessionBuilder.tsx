@@ -662,16 +662,16 @@ export function SessionBuilderPage() {
                         {theme.name}
                       </h3>
                       <p className="text-xs text-gray-400 italic mb-3">
-                        {theme.faction}
+                        {theme.valueGroup}
                       </p>
                       <p className="text-sm text-gray-300 leading-relaxed mb-3">
                         {theme.description}
                       </p>
 
-                      {/* Lore Text */}
+                      {/* Indicators */}
                       <div className="border-t border-gray-700 pt-3 mt-3">
                         <p className="text-xs text-gray-400 italic leading-relaxed">
-                          {theme.lore}
+                          {theme.indicators.join(' · ')}
                         </p>
                       </div>
 

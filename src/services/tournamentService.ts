@@ -32,7 +32,7 @@ export interface TournamentDesign {
 export const defaultTournamentDesign: TournamentDesign = {
   team1: { name: 'Team 1', color: '#E00800', icon: '🔴' },
   team2: { name: 'Team 2', color: '#003DA5', icon: '🔵' },
-  backgroundTheme: 'innovation',
+  backgroundTheme: 'win-together',
   brandingText: '',
   pointsPerCorrectAnswer: 10,
   timePerQuestion: 15,

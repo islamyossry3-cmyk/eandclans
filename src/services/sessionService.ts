@@ -36,7 +36,7 @@ export const sessionService = {
         design_team2_name: data.design?.team2.name || 'Team 2',
         design_team2_color: data.design?.team2.color || '#47CB6C',
         design_team2_icon: data.design?.team2.icon || '🏯',
-        design_background_theme: data.design?.backgroundTheme || 'innovation',
+        design_background_theme: data.design?.backgroundTheme || 'win-together',
         design_logo_url: data.design?.logoUrl,
         design_branding_text: data.design?.brandingText,
         questions: JSON.stringify(data.questions || []),

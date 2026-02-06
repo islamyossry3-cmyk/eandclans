@@ -579,7 +579,7 @@ export function PlayerGamePage() {
             team1Color={session.design.team1.color}
             team2Color={session.design.team2.color}
             backgroundVideoUrl={undefined}
-            islandImageUrl={getTheme(session.design.backgroundTheme || 'innovation').backgroundImage}
+            islandImageUrl={getTheme(session.design.backgroundTheme || 'win-together').backgroundImage}
             availableTerritories={availableTerritories}
             onHexClick={handleClaimTerritory}
             myTeam={team!}

@@ -252,7 +252,7 @@ export function LiveSessionPage() {
   }
 
   if (liveGame.status === 'lobby') {
-    const theme = getTheme(session.design.backgroundTheme || 'innovation');
+    const theme = getTheme(session.design.backgroundTheme || 'win-together');
     const islandImage = theme.backgroundImage;
 
     return (
@@ -507,7 +507,7 @@ export function LiveSessionPage() {
     const team1Territories = territories.filter(t => t.owner === 'team1').length;
     const team2Territories = territories.filter(t => t.owner === 'team2').length;
 
-    const currentTheme = getTheme(session.design.backgroundTheme || 'innovation');
+    const currentTheme = getTheme(session.design.backgroundTheme || 'win-together');
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-cyan-900">

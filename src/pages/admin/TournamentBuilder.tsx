@@ -22,12 +22,12 @@ import {
 type Step = 'basic' | 'schedule' | 'players' | 'design' | 'questions' | 'review';
 
 const THEME_OPTIONS = [
-  { value: 'innovation', label: 'Innovation', emoji: '💡' },
-  { value: 'excellence', label: 'Excellence', emoji: '⭐' },
-  { value: 'integrity', label: 'Integrity', emoji: '🛡️' },
-  { value: 'customer-focus', label: 'Customer Focus', emoji: '🎯' },
-  { value: 'collaboration', label: 'Collaboration', emoji: '🤝' },
-  { value: 'empowerment', label: 'Empowerment', emoji: '🚀' },
+  { value: 'win-together', label: 'Win Together', emoji: '🤝', group: 'Unite as One&' },
+  { value: 'build-capabilities', label: 'Build Capabilities', emoji: '🤝', group: 'Unite as One&' },
+  { value: 'push-boundaries', label: 'Push Boundaries', emoji: '�', group: 'Dare to be Bold' },
+  { value: 'champion-innovation', label: 'Champion Innovation', emoji: '💎', group: 'Dare to be Bold' },
+  { value: 'leverage-data-ai', label: 'Leverage Data & AI', emoji: '🎯', group: 'Be Customer Obsessed' },
+  { value: 'exceed-expectations', label: 'Exceed Expectations', emoji: '🎯', group: 'Be Customer Obsessed' },
 ];
 
 const ICON_OPTIONS = ['🔴', '🔵', '🟢', '🟡', '🟣', '🏰', '🏯', '⚔️', '🛡️', '🦁', '🦅', '🐉', '🔥', '⚡', '💎', '👑'];

@@ -117,6 +117,11 @@ export function useTournamentScheduler({
         }
       }
 
+      // 1b. Kick inactive players from active tournament session (5-minute timeout)
+      if (activeSession && activeSession.liveGameId) {
+        await kickInactivePlayers(activeSession.liveGameId);
+      }
+
       // 2. Check if a pending session should be activated
       if (!activeSession) {
         // Skip activation if outside scheduling window (active hours / excluded days)
@@ -174,6 +179,33 @@ export function useTournamentScheduler({
   }, [enabled, tournament?.id, tournament?.status, sessions, checkAndTransition]);
 }
 
+const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Kicks players from a tournament live game who haven't answered
+ * any question in the last 5 minutes, freeing up spots for others.
+ */
+async function kickInactivePlayers(liveGameId: string) {
+  try {
+    const players = await gameService.getPlayers(liveGameId);
+    const now = Date.now();
+
+    for (const player of players) {
+      if (!player.lastActive) continue;
+      const lastActiveTime = new Date(player.lastActive).getTime();
+      if (now - lastActiveTime > INACTIVITY_TIMEOUT_MS) {
+        console.log(
+          `[TournamentScheduler] Kicking inactive player "${player.playerName}" ` +
+          `(idle ${Math.round((now - lastActiveTime) / 60000)}m)`
+        );
+        await gameService.removePlayer(player.id);
+      }
+    }
+  } catch (error) {
+    console.error('[TournamentScheduler] Error kicking inactive players:', error);
+  }
+}
+
 /**
  * Creates a live_game row for a tournament session.
  * The live_games table references sessions.id, but tournament sessions
@@ -224,7 +256,7 @@ async function createLiveGameForSession(
           design_team2_name: tournament.design?.team2?.name || 'Team 2',
           design_team2_color: tournament.design?.team2?.color || '#003DA5',
           design_team2_icon: tournament.design?.team2?.icon || '🔵',
-          design_background_theme: tournament.design?.backgroundTheme || 'innovation',
+          design_background_theme: tournament.design?.backgroundTheme || 'win-together',
           design_branding_text: tournament.design?.brandingText || '',
           questions: tournament.questions || [],
         })

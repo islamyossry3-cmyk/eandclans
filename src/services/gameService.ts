@@ -358,6 +358,18 @@ export const gameService = {
     }
   },
 
+  async removePlayer(playerId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('game_players')
+        .delete()
+        .eq('id', playerId);
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
   async getGameBySessionId(sessionId: string): Promise<LiveGame | null> {
     try {
       const { data, error } = await supabase
