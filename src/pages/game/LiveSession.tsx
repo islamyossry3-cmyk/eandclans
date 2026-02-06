@@ -96,17 +96,11 @@ export function LiveSessionPage() {
     const checkConnection = () => {
       const allSubscribed = channels.every(ch => ch.state === 'joined');
       setRealtimeConnected(allSubscribed);
-      if (allSubscribed) {
-        console.log('[Realtime] All channels connected successfully');
-      }
     };
     
     // Check connection status after a short delay
     const connectionTimer = setTimeout(checkConnection, 2000);
     
-    // Log subscription states for debugging
-    console.log('[Realtime] Subscribing to channels for game:', liveGame.id);
-
     const territoriesChannel = gameService.subscribeToTerritories(liveGame.id, (updatedTerritories) => {
       if (prevTerritoryCount.current > 0 && updatedTerritories.length > prevTerritoryCount.current) {
         const newTerritory = updatedTerritories[updatedTerritories.length - 1];

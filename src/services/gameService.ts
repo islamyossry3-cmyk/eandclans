@@ -327,20 +327,46 @@ export const gameService = {
     claimedBy: string
   ): Promise<boolean> {
     try {
-      const { error } = await supabase
+      // Check if territory already exists (re-capture scenario)
+      const { data: existing } = await supabase
         .from('hex_territories')
-        .insert({
-          live_game_id: gameId,
-          hex_id: hexId,
-          team: owner,
-          claimed_by_player_id: claimedBy,
-        });
+        .select('id, team')
+        .eq('live_game_id', gameId)
+        .eq('hex_id', hexId)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (existing) {
+        // Re-capture: update ownership
+        const previousOwner = existing.team as 'team1' | 'team2';
+        const { error } = await supabase
+          .from('hex_territories')
+          .update({
+            team: owner,
+            claimed_by_player_id: claimedBy,
+            claimed_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id);
+        if (error) throw error;
 
-      await this.updateScore(gameId, owner, 1);
+        // +1 for new owner, -1 for old owner
+        await this.updateScore(gameId, owner, 1);
+        await this.updateScore(gameId, previousOwner, -1);
+      } else {
+        // First claim: insert new territory
+        const { error } = await supabase
+          .from('hex_territories')
+          .insert({
+            live_game_id: gameId,
+            hex_id: hexId,
+            team: owner,
+            claimed_by_player_id: claimedBy,
+          });
+        if (error) throw error;
+
+        await this.updateScore(gameId, owner, 1);
+      }
+
       await this.updatePlayerStats(claimedBy, { territoriesClaimed: 1 });
-
       return true;
     } catch (error) {
       console.error('Failed to claim territory:', error);
@@ -436,9 +462,17 @@ export const gameService = {
     return channel;
   },
 
-  subscribeToPlayers(
+  /**
+   * Optimized subscription that returns raw events instead of refetching all players.
+   * Use this to maintain local state efficiently.
+   */
+  subscribeToPlayerUpdates(
     gameId: string,
-    onUpdate: (players: GamePlayer[]) => void
+    callbacks: {
+      onInsert?: (player: GamePlayer) => void;
+      onUpdate?: (player: GamePlayer) => void;
+      onDelete?: (id: string) => void;
+    }
   ): RealtimeChannel {
     const channel = supabase
       .channel(`players:${gameId}`)
@@ -450,8 +484,66 @@ export const gameService = {
           table: 'game_players',
           filter: `live_game_id=eq.${gameId}`,
         },
+        (payload) => {
+          if (payload.eventType === 'INSERT' && payload.new && callbacks.onInsert) {
+            callbacks.onInsert(this.mapDbToGamePlayer(payload.new));
+          } else if (payload.eventType === 'UPDATE' && payload.new && callbacks.onUpdate) {
+            callbacks.onUpdate(this.mapDbToGamePlayer(payload.new));
+          } else if (payload.eventType === 'DELETE' && payload.old && callbacks.onDelete) {
+            callbacks.onDelete(payload.old.id as string);
+          }
+        }
+      )
+      .subscribe();
+
+    return channel;
+  },
+
+  /**
+   * Subscribe to a single player's updates.
+   * Highly efficient for individual player views.
+   */
+  subscribeToPlayer(
+    playerId: string,
+    onUpdate: (player: GamePlayer) => void
+  ): RealtimeChannel {
+    return supabase
+      .channel(`player:${playerId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'game_players',
+          filter: `id=eq.${playerId}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            onUpdate(this.mapDbToGamePlayer(payload.new));
+          }
+        }
+      )
+      .subscribe();
+  },
+
+  // Deprecated: Use subscribeToPlayerUpdates for better performance
+  subscribeToPlayers(
+    gameId: string,
+    onUpdate: (players: GamePlayer[]) => void
+  ): RealtimeChannel {
+    const channel = supabase
+      .channel(`players_legacy:${gameId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'game_players',
+          filter: `live_game_id=eq.${gameId}`,
+        },
         () => {
-          // Debounce: batch rapid player changes into one refetch
+          // Debounce to avoid refetching on every event burst.
+          // OK for small games/admin views; prefer subscribeToPlayerUpdates for scale.
           debouncedRefetch(
             `players:${gameId}`,
             () => this.getPlayers(gameId),

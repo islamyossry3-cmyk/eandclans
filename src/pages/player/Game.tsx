@@ -13,7 +13,7 @@ import { useGameEffects } from '../../hooks/useGameEffects';
 import { Confetti as SharedConfetti } from '../../components/shared/Confetti';
 import { ScorePopup, ScoreStreak, Celebration, AchievementToast } from '../../components/game';
 import { PlayerHexGrid } from '../../components/game/PlayerHexGrid';
-import { Clock, Trophy, CheckCircle, XCircle, Users, Volume2, VolumeX, Target, Zap, MapPin, AlertCircle } from 'lucide-react';
+import { Clock, Trophy, CheckCircle, XCircle, Users, Volume2, VolumeX, Target, Zap, MapPin, AlertCircle, FileText, Download } from 'lucide-react';
 import type { Session } from '../../types/session';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getTheme } from '../../constants/themes';
@@ -41,15 +41,12 @@ export function PlayerGamePage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [questionsAnsweredCount, setQuestionsAnsweredCount] = useState(0);
-  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
-  const hasStartedRedirectRef = useRef(false);
 
   const [session, setSession] = useState<Session | null>(null);
   const [liveGame, setLiveGame] = useState<LiveGame | null>(null);
   const [allPlayers, setAllPlayers] = useState<GamePlayer[]>([]);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedTeam, setSelectedTeam] = useState<'team1' | 'team2' | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [hasAnswered, setHasAnswered] = useState(false);
@@ -108,13 +105,25 @@ export function PlayerGamePage() {
     );
     channels.push(gameChannel);
 
-    const playersChannel = gameService.subscribeToPlayers(liveGame.id, (updatedPlayers) => {
-      setAllPlayers(updatedPlayers);
-      if (playerId) {
-        const player = updatedPlayers.find((p) => p.id === playerId);
-        if (player) {
-          setPlayerData(player);
-        } else {
+    const playersChannel = gameService.subscribeToPlayerUpdates(liveGame.id, {
+      onInsert: (newPlayer) => {
+        setAllPlayers((prev) => {
+          if (prev.some((p) => p.id === newPlayer.id)) return prev;
+          return [...prev, newPlayer];
+        });
+        if (playerId && newPlayer.id === playerId) {
+          setPlayerData(newPlayer);
+        }
+      },
+      onUpdate: (updatedPlayer) => {
+        setAllPlayers((prev) => prev.map((p) => (p.id === updatedPlayer.id ? updatedPlayer : p)));
+        if (playerId && updatedPlayer.id === playerId) {
+          setPlayerData(updatedPlayer);
+        }
+      },
+      onDelete: (deletedId) => {
+        setAllPlayers((prev) => prev.filter((p) => p.id !== deletedId));
+        if (playerId && deletedId === playerId) {
           localStorage.removeItem('playerId');
           localStorage.removeItem('playerName');
           localStorage.removeItem('gameId');
@@ -125,7 +134,7 @@ export function PlayerGamePage() {
           setSelectedAnswer(null);
           setAvailableTerritories([]);
         }
-      }
+      },
     });
     channels.push(playersChannel);
 
@@ -175,30 +184,57 @@ export function PlayerGamePage() {
     }
   }, [liveGame?.status, liveGame?.endsAt]);
 
-  // Background music control
+  // Background music control — with iOS Safari audio unlock
   useEffect(() => {
     if (!session) return;
 
     const musicUrl = session.backgroundMusicUrl || '/assets/eandd.mp3';
-    
+
     if (!audioRef.current) {
-      audioRef.current = new Audio(musicUrl);
-      audioRef.current.loop = true;
-      audioRef.current.volume = 0.3;
+      const audio = new Audio(musicUrl);
+      audio.loop = true;
+      audio.volume = 0.3;
+      audio.preload = 'auto';
+      // iOS Safari requires setAttribute for webkit
+      audio.setAttribute('playsinline', '');
+      audio.setAttribute('webkit-playsinline', '');
+      audioRef.current = audio;
     }
 
     const audio = audioRef.current;
 
-    if (liveGame?.status === 'playing' && !isMuted) {
-      audio.play().catch(() => {
-        // Autoplay was prevented, user needs to interact first
-      });
-    } else {
-      audio.pause();
-    }
+    const tryPlay = () => {
+      if (liveGame?.status === 'playing' && !isMuted) {
+        const playPromise = audio.play();
+        if (playPromise) {
+          playPromise.catch(() => {
+            // Autoplay blocked — will retry on user gesture via unlock handler
+          });
+        }
+      } else {
+        audio.pause();
+      }
+    };
+
+    // iOS Safari unlock: play a silent frame on first user gesture to unlock audio
+    const unlockAudio = () => {
+      audio.play().then(() => {
+        if (!(liveGame?.status === 'playing' && !isMuted)) {
+          audio.pause();
+        }
+      }).catch(() => {});
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+    document.addEventListener('click', unlockAudio, { once: true });
+
+    tryPlay();
 
     return () => {
       audio.pause();
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
     };
   }, [liveGame?.status, isMuted, session]);
 
@@ -206,8 +242,13 @@ export function PlayerGamePage() {
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.muted = isMuted;
+      if (!isMuted && liveGame?.status === 'playing') {
+        audioRef.current.play().catch(() => {});
+      } else if (isMuted) {
+        audioRef.current.pause();
+      }
     }
-  }, [isMuted]);
+  }, [isMuted, liveGame?.status]);
 
   const loadSession = async () => {
     setIsLoading(true);
@@ -246,15 +287,11 @@ export function PlayerGamePage() {
 
   const handleTeamSelect = async (selectedTeam: 'team1' | 'team2') => {
     if (!liveGame || !session || isLoading) {
-      console.log('[Game] handleTeamSelect blocked:', { liveGame: !!liveGame, session: !!session, isLoading });
       return;
     }
 
-    console.log('[Game] handleTeamSelect called for team:', selectedTeam);
-
     const existingPlayer = allPlayers.find((p) => p.playerName === playerName);
     if (existingPlayer) {
-      console.log('[Game] Player already exists, reconnecting:', existingPlayer.id);
       setPlayer(existingPlayer.id, playerName!, liveGame.id, existingPlayer.team!);
       setPlayerData(existingPlayer);
       return;
@@ -267,9 +304,6 @@ export function PlayerGamePage() {
     }
 
     setIsLoading(true);
-    setSelectedTeam(selectedTeam);
-
-    console.log('[Game] Adding player to game:', liveGame.id);
     const player = await gameService.addPlayer(liveGame.id, playerName!, selectedTeam, {
       email: playerEmail || undefined,
       organization: playerOrganization || undefined,
@@ -277,7 +311,6 @@ export function PlayerGamePage() {
     });
 
     if (player) {
-      console.log('[Game] Player added successfully:', player.id);
       setPlayer(player.id, playerName!, liveGame.id, selectedTeam);
       setPlayerData(player);
       const teamName = selectedTeam === 'team1' ? session.design.team1.name : session.design.team2.name;
@@ -285,7 +318,6 @@ export function PlayerGamePage() {
     } else {
       console.error('[Game] Failed to add player - gameService.addPlayer returned null');
       showError('Failed to join team. Please try again.');
-      setSelectedTeam(null);
     }
 
     setIsLoading(false);
@@ -319,8 +351,9 @@ export function PlayerGamePage() {
     });
 
     if (isCorrect && team && liveGame) {
-      const territories = await gameService.getTerritories(liveGame.id);
-      const occupied = territories.map((t) => t.hexId);
+      const currentTerritories = await gameService.getTerritories(liveGame.id);
+      // Only exclude hexes already owned by YOUR team — opponent hexes can be re-captured
+      const myTeamHexIds = currentTerritories.filter(t => t.owner === team).map(t => t.hexId);
 
       const allHexIds = [
         ...['hex-1-1', 'hex-1-2', 'hex-1-3', 'hex-1-4', 'hex-1-5', 'hex-1-6'],
@@ -339,7 +372,7 @@ export function PlayerGamePage() {
         available = allHexIds;
       }
 
-      available = available.filter((hexId) => !occupied.includes(hexId));
+      available = available.filter((hexId) => !myTeamHexIds.includes(hexId));
       setAvailableTerritories(available);
     }
 
@@ -553,7 +586,6 @@ export function PlayerGamePage() {
 
   if (liveGame.status === 'playing') {
     const teamColor = team === 'team1' ? session.design.team1.color : session.design.team2.color;
-    const opponentTeam = team === 'team1' ? 'team2' : 'team1';
     const myScore = team === 'team1' ? liveGame.team1Score : liveGame.team2Score;
     const opponentScore = team === 'team1' ? liveGame.team2Score : liveGame.team1Score;
 
@@ -585,19 +617,6 @@ export function PlayerGamePage() {
             myTeam={team!}
             newlyClaimedHex={newlyClaimedHex}
           />
-
-          <AnimatePresence>
-            {claimingTerritory && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-                className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
-                <div className="px-6 py-3 rounded-full font-bold text-white shadow-2xl flex items-center gap-2"
-                  style={{ background: `linear-gradient(135deg, ${eandColors.brightGreen}, ${eandColors.darkGreen})` }}>
-                  <MapPin className="w-5 h-5 animate-pulse" />
-                  <span>Territory Claimed!</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           <ToastContainer toasts={toasts} onClose={removeToast} />
         </div>
@@ -799,20 +818,7 @@ export function PlayerGamePage() {
       setTimeout(() => setShowConfetti(false), 5000);
     }
 
-    if (session.postGameFileUrl && !hasStartedRedirectRef.current) {
-      hasStartedRedirectRef.current = true;
-      setRedirectCountdown(3);
-      const countdownInterval = setInterval(() => {
-        setRedirectCountdown(prev => {
-          if (prev === null || prev <= 1) {
-            clearInterval(countdownInterval);
-            window.open(session.postGameFileUrl, '_blank');
-            return null;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+    // PDF download handled by manual button below (no auto-popup which Safari blocks)
 
     const teamColor = team === 'team1' ? session.design.team1.color : session.design.team2.color;
 
@@ -861,14 +867,38 @@ export function PlayerGamePage() {
               </>
             )}
 
-            {redirectCountdown !== null ? (
-              <div className="mb-4 px-4 py-2.5 rounded-xl" style={{ background: `${eandColors.brightGreen}08`, border: `1px solid ${eandColors.brightGreen}20` }}>
-                <p className="text-sm font-medium" style={{ color: eandColors.brightGreen }}>Opening document in {redirectCountdown}...</p>
-              </div>
-            ) : session.postGameFileUrl ? (
-              <div className="mb-4 px-4 py-2.5 rounded-xl" style={{ background: `${eandColors.brightGreen}08`, border: `1px solid ${eandColors.brightGreen}20` }}>
-                <p className="text-sm font-medium" style={{ color: eandColors.brightGreen }}>Document opened in new tab</p>
-              </div>
+            {session.postGameFileUrl ? (
+              <a
+                href={session.postGameFileUrl}
+                download="e&-Values.pdf"
+                className="mb-4 flex items-center justify-center gap-3 px-5 py-3.5 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95"
+                style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.brightGreen} 100%)` }}
+                onClick={(e) => {
+                  // For cross-origin URLs, download attr may not work. Fetch as blob instead.
+                  e.preventDefault();
+                  const url = session.postGameFileUrl!;
+                  fetch(url)
+                    .then(r => r.blob())
+                    .then(blob => {
+                      const blobUrl = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = blobUrl;
+                      a.download = 'e&-Values.pdf';
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(blobUrl);
+                    })
+                    .catch(() => {
+                      // Fallback: navigate directly to the PDF
+                      window.location.href = url;
+                    });
+                }}
+              >
+                <FileText className="w-5 h-5" />
+                Download e& Values PDF
+                <Download className="w-5 h-5" />
+              </a>
             ) : (
               <div className="mb-4 px-4 py-2.5 rounded-xl" style={{ background: `${eandColors.oceanBlue}05`, border: `1px solid ${eandColors.oceanBlue}10` }}>
                 <p className="text-sm font-medium" style={{ color: eandColors.oceanBlue }}>Waiting for host to restart...</p>

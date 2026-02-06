@@ -511,35 +511,47 @@ export const tournamentService = {
     }
   ): Promise<boolean> {
     try {
-      const { data: player } = await supabase
-        .from('tournament_players')
-        .select('*')
-        .eq('id', playerId)
-        .single();
+      const { error } = await supabase.rpc('increment_tournament_player_stats', {
+        player_id: playerId,
+        add_correct: updates.correctAnswersToAdd || 0,
+        add_credits: updates.creditsToAdd || 0,
+        add_territories: updates.territoriesClaimedToAdd || 0,
+        add_sessions: updates.incrementSessionsPlayed ? 1 : 0,
+      });
 
-      if (!player) return false;
+      if (error && error.message?.includes('function') && error.message?.includes('does not exist')) {
+        const { data: player } = await supabase
+          .from('tournament_players')
+          .select('*')
+          .eq('id', playerId)
+          .single();
 
-      const newStats: Record<string, any> = {
-        updated_at: new Date().toISOString(),
-      };
+        if (!player) return false;
 
-      if (updates.creditsToAdd) {
-        newStats.total_credits = player.total_credits + updates.creditsToAdd;
-      }
-      if (updates.correctAnswersToAdd) {
-        newStats.total_correct_answers = player.total_correct_answers + updates.correctAnswersToAdd;
-      }
-      if (updates.territoriesClaimedToAdd) {
-        newStats.total_territories_claimed = player.total_territories_claimed + updates.territoriesClaimedToAdd;
-      }
-      if (updates.incrementSessionsPlayed) {
-        newStats.sessions_played = player.sessions_played + 1;
-      }
+        const newStats: Record<string, any> = {
+          updated_at: new Date().toISOString(),
+        };
 
-      const { error } = await supabase
-        .from('tournament_players')
-        .update(newStats)
-        .eq('id', playerId);
+        if (updates.creditsToAdd) {
+          newStats.total_credits = player.total_credits + updates.creditsToAdd;
+        }
+        if (updates.correctAnswersToAdd) {
+          newStats.total_correct_answers = player.total_correct_answers + updates.correctAnswersToAdd;
+        }
+        if (updates.territoriesClaimedToAdd) {
+          newStats.total_territories_claimed = player.total_territories_claimed + updates.territoriesClaimedToAdd;
+        }
+        if (updates.incrementSessionsPlayed) {
+          newStats.sessions_played = player.sessions_played + 1;
+        }
+
+        const { error: updateError } = await supabase
+          .from('tournament_players')
+          .update(newStats)
+          .eq('id', playerId);
+
+        return !updateError;
+      }
 
       return !error;
     } catch {
@@ -550,28 +562,46 @@ export const tournamentService = {
   // Credit System (3 correct = 1 credit)
   async addCorrectAnswer(playerId: string): Promise<{ newCredits: number; creditEarned: boolean }> {
     try {
-      const { data: player } = await supabase
-        .from('tournament_players')
-        .select('total_correct_answers, total_credits')
-        .eq('id', playerId)
-        .single();
+      const { data, error } = await supabase.rpc('increment_tournament_player_stats', {
+        player_id: playerId,
+        add_correct: 1,
+        add_credits: 0,
+        add_territories: 0,
+        add_sessions: 0,
+      });
 
-      if (!player) return { newCredits: 0, creditEarned: false };
+      if (error && error.message?.includes('function') && error.message?.includes('does not exist')) {
+        const { data: player } = await supabase
+          .from('tournament_players')
+          .select('total_correct_answers, total_credits')
+          .eq('id', playerId)
+          .single();
 
-      const newCorrectAnswers = player.total_correct_answers + 1;
-      const creditEarned = newCorrectAnswers % 3 === 0;
-      const newCredits = creditEarned ? player.total_credits + 1 : player.total_credits;
+        if (!player) return { newCredits: 0, creditEarned: false };
 
-      await supabase
-        .from('tournament_players')
-        .update({
-          total_correct_answers: newCorrectAnswers,
-          total_credits: newCredits,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', playerId);
+        const newCorrectAnswers = player.total_correct_answers + 1;
+        const creditEarned = newCorrectAnswers % 3 === 0;
+        const newCredits = creditEarned ? player.total_credits + 1 : player.total_credits;
 
-      return { newCredits, creditEarned };
+        await supabase
+          .from('tournament_players')
+          .update({
+            total_correct_answers: newCorrectAnswers,
+            total_credits: newCredits,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', playerId);
+
+        return { newCredits, creditEarned };
+      }
+
+      if (error) return { newCredits: 0, creditEarned: false };
+
+      const row = Array.isArray(data) ? data[0] : data;
+      return {
+        newCredits: row?.total_credits ?? 0,
+        creditEarned: row?.credit_earned ?? false,
+      };
     } catch {
       return { newCredits: 0, creditEarned: false };
     }

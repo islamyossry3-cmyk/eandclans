@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { tournamentService, type Tournament, type TournamentSession, type TournamentPlayer } from '../../services/tournamentService';
 import { gameService, type LiveGame, type GamePlayer, type HexTerritory } from '../../services/gameService';
@@ -44,6 +44,7 @@ export function TournamentPlayPage() {
   const { toasts, removeToast, success, error: showError } = useToast();
   const gameEffects = useGameEffects();
   const [isMuted, setIsMuted] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [tournament, setTournament] = useState<Tournament | null>(currentTournament);
   const [session, setSession] = useState<TournamentSession | null>(currentSession);
@@ -143,12 +144,21 @@ export function TournamentPlayPage() {
     );
     channels.push(gameChannel);
 
-    const playersChannel = gameService.subscribeToPlayers(liveGame.id, (players) => {
-      setAllPlayers(players);
-      if (gamePlayer) {
-        const me = players.find(p => p.id === gamePlayer.id);
-        if (me) setGamePlayer(me);
-      }
+    const playersChannel = gameService.subscribeToPlayerUpdates(liveGame.id, {
+      onInsert: (newPlayer) => {
+        setAllPlayers((prev) => {
+          if (prev.some((p) => p.id === newPlayer.id)) return prev;
+          return [...prev, newPlayer];
+        });
+      },
+      onUpdate: (updatedPlayer) => {
+        setAllPlayers((prev) => prev.map((p) => (p.id === updatedPlayer.id ? updatedPlayer : p)));
+        setGamePlayer((prev) => (prev?.id === updatedPlayer.id ? updatedPlayer : prev));
+      },
+      onDelete: (deletedId) => {
+        setAllPlayers((prev) => prev.filter((p) => p.id !== deletedId));
+        setGamePlayer((prev) => (prev?.id === deletedId ? null : prev));
+      },
     });
     channels.push(playersChannel);
 
@@ -158,7 +168,50 @@ export function TournamentPlayPage() {
     return () => {
       channels.forEach(ch => ch.unsubscribe());
     };
-  }, [liveGame?.id, gamePlayer?.id]);
+  }, [liveGame?.id]);
+
+  // Background music — with iOS Safari audio unlock
+  useEffect(() => {
+    if (!tournament) return;
+
+    const musicUrl = tournament.design?.backgroundMusicUrl || '/assets/eandd.mp3';
+
+    if (!audioRef.current) {
+      const audio = new Audio(musicUrl);
+      audio.loop = true;
+      audio.volume = 0.3;
+      audio.preload = 'auto';
+      audio.setAttribute('playsinline', '');
+      audio.setAttribute('webkit-playsinline', '');
+      audioRef.current = audio;
+    }
+
+    const audio = audioRef.current;
+    const shouldPlay = !!session && liveGame?.status === 'playing' && !isMuted;
+
+    if (shouldPlay) {
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+    }
+
+    // iOS Safari unlock: play on first user gesture
+    const unlockAudio = () => {
+      audio.play().then(() => {
+        if (!shouldPlay) audio.pause();
+      }).catch(() => {});
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+    document.addEventListener('click', unlockAudio, { once: true });
+
+    return () => {
+      audio.pause();
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+  }, [tournament?.id, liveGame?.status, isMuted, session?.id]);
 
   useEffect(() => {
     if (session?.status === 'active' && session.scheduledEnd) {
@@ -346,15 +399,15 @@ export function TournamentPlayPage() {
         success('🎉 You earned a credit!');
       }
 
-      // Get available territories
+      // Get available territories — opponent hexes can be re-captured
       const currentTerritories = await gameService.getTerritories(liveGame.id);
-      const occupied = currentTerritories.map(t => t.hexId);
+      const myTeamHexIds = currentTerritories.filter(t => t.owner === team).map(t => t.hexId);
       const allHexIds = [
         'hex-1-1', 'hex-1-2', 'hex-1-3', 'hex-1-4', 'hex-1-5', 'hex-1-6',
         'hex-2-1', 'hex-2-2', 'hex-2-3', 'hex-2-4', 'hex-2-5', 'hex-2-6',
         'hex-2-7', 'hex-2-8', 'hex-2-9', 'hex-2-10', 'hex-2-11', 'hex-2-12',
       ];
-      const available = allHexIds.filter(id => !occupied.includes(id));
+      const available = allHexIds.filter(id => !myTeamHexIds.includes(id));
       setAvailableTerritories(available);
     } else {
       setTimeout(() => {
@@ -561,10 +614,28 @@ export function TournamentPlayPage() {
             <div className="mt-6">
               <a
                 href={tournament.postGameFileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                download="e&-Values.pdf"
                 className="w-full flex items-center justify-center gap-3 px-6 py-5 rounded-2xl text-white font-bold text-lg shadow-lg transition-all hover:scale-[1.02] active:scale-95"
                 style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.brightGreen} 100%)` }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  const url = tournament.postGameFileUrl!;
+                  fetch(url)
+                    .then(r => r.blob())
+                    .then(blob => {
+                      const blobUrl = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = blobUrl;
+                      a.download = 'e&-Values.pdf';
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(blobUrl);
+                    })
+                    .catch(() => {
+                      window.location.href = url;
+                    });
+                }}
               >
                 <FileText className="w-6 h-6" />
                 Download e& Values PDF
