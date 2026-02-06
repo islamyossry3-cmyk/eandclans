@@ -32,7 +32,9 @@ export function SessionBuilderPage() {
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [uploadingPostGameFile, setUploadingPostGameFile] = useState(false);
   const [uploadingMusic, setUploadingMusic] = useState(false);
+  const [uploadingBackground, setUploadingBackground] = useState(false);
   const musicFileInputRef = useRef<HTMLInputElement>(null);
+  const backgroundImageInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<Partial<Session>>({
     name: '',
     description: '',
@@ -48,8 +50,8 @@ export function SessionBuilderPage() {
     design: {
       team1: { name: 'Team 1', color: '#2D7A3E', icon: '🏰' },
       team2: { name: 'Team 2', color: '#D4AF37', icon: '🏯' },
-      backgroundTheme: 'highland',
-      theme: 'highland',
+      backgroundTheme: 'win-together',
+      theme: 'win-together',
       brandingText: '',
     },
     questions: [],
@@ -165,7 +167,7 @@ export function SessionBuilderPage() {
       const fileName = `music/${crypto.randomUUID()}-${file.name}`;
       
       const { data, error: uploadError } = await supabase.storage
-        .from('session-files')
+        .from('game-assets')
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: false,
@@ -174,7 +176,7 @@ export function SessionBuilderPage() {
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('session-files')
+        .from('game-assets')
         .getPublicUrl(data.path);
 
       setFormData({ ...formData, backgroundMusicUrl: publicUrl });
@@ -214,7 +216,7 @@ export function SessionBuilderPage() {
       const fileName = `${crypto.randomUUID()}-${file.name}`;
       
       const { data, error: uploadError } = await supabase.storage
-        .from('session-files')
+        .from('game-assets')
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: false,
@@ -223,7 +225,7 @@ export function SessionBuilderPage() {
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('session-files')
+        .from('game-assets')
         .getPublicUrl(data.path);
 
       setFormData({ ...formData, postGameFileUrl: publicUrl });
@@ -236,6 +238,43 @@ export function SessionBuilderPage() {
       if (postGameFileInputRef.current) {
         postGameFileInputRef.current.value = '';
       }
+    }
+  };
+
+  const handleBackgroundImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      error('Please upload an image (PNG, JPG, or WebP)');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      error('Image must be less than 10MB');
+      return;
+    }
+    setUploadingBackground(true);
+    try {
+      const { supabase } = await import('../../lib/supabase');
+      const fileName = `backgrounds/${crypto.randomUUID()}-${file.name}`;
+      const { data, error: uploadError } = await supabase.storage
+        .from('game-assets')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from('game-assets')
+        .getPublicUrl(data.path);
+      setFormData({
+        ...formData,
+        design: { ...formData.design!, customBackgroundUrl: publicUrl },
+      });
+      success('Background image uploaded');
+    } catch (err) {
+      console.error('Upload error:', err);
+      error('Failed to upload background image');
+    } finally {
+      setUploadingBackground(false);
+      if (backgroundImageInputRef.current) backgroundImageInputRef.current.value = '';
     }
   };
 
@@ -697,6 +736,41 @@ export function SessionBuilderPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Custom Background Image Upload */}
+            <div className="mt-4">
+              <label className="block text-sm font-bold text-gray-900 mb-2">
+                Custom Background Image (optional — overrides theme background)
+              </label>
+              {formData.design?.customBackgroundUrl ? (
+                <div className="flex items-center gap-4">
+                  <div className="w-32 h-20 rounded-lg overflow-hidden border-2 border-gray-300">
+                    <img src={formData.design.customBackgroundUrl} alt="Custom background" className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-green-600 mb-2">✓ Custom background uploaded</p>
+                    <button type="button"
+                      className="text-sm text-red-500 hover:text-red-700 flex items-center gap-1"
+                      onClick={() => setFormData({ ...formData, design: { ...formData.design!, customBackgroundUrl: undefined } })}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <input ref={backgroundImageInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleBackgroundImageUpload} />
+                  <button type="button"
+                    className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all"
+                    onClick={() => backgroundImageInputRef.current?.click()}
+                    disabled={uploadingBackground}
+                  >
+                    {uploadingBackground ? 'Uploading...' : 'Upload Background Image'}
+                  </button>
+                  <span className="text-xs text-gray-500">PNG, JPG, or WebP — max 10MB</span>
+                </div>
+              )}
             </div>
 
             {/* Teams Section - Only for Team Battle */}

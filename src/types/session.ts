@@ -42,6 +42,7 @@ export interface SessionDesign {
   team2: TeamDesign;
   backgroundTheme: string;
   theme?: string;
+  customBackgroundUrl?: string;
   backgroundVideoUrl?: string;
   islandImageUrl?: string;
   backgroundAssets?: {

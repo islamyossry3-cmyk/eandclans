@@ -152,7 +152,7 @@ export function LiveSessionPage() {
   const loadSession = async () => {
     setIsLoading(true);
 
-    const foundSession = await sessionService.getSessionByPin(sessionPin!);
+    let foundSession = await sessionService.getSessionByPin(sessionPin!);
 
     if (!foundSession) {
       setIsLoading(false);
@@ -160,6 +160,13 @@ export function LiveSessionPage() {
     }
 
     setSession(foundSession);
+
+    // Auto-transition session to 'live' when admin opens the live page
+    if (foundSession.status === 'draft' || foundSession.status === 'ready') {
+      await sessionService.updateSession(foundSession.id, { status: 'live' } as Partial<Session>);
+      foundSession = { ...foundSession, status: 'live' };
+      setSession(foundSession);
+    }
 
     let game = await gameService.getLiveGameBySessionId(foundSession.id);
     if (!game) {
@@ -253,7 +260,7 @@ export function LiveSessionPage() {
 
   if (liveGame.status === 'lobby') {
     const theme = getTheme(session.design.backgroundTheme || 'win-together');
-    const islandImage = theme.backgroundImage;
+    const islandImage = session.design.customBackgroundUrl || theme.backgroundImage;
 
     return (
       <div className="relative min-h-screen overflow-hidden p-4 md:p-8">
@@ -548,7 +555,7 @@ export function LiveSessionPage() {
               team2Score={liveGame.team2Score}
               timeRemaining={timeRemaining}
               backgroundVideoUrl={undefined}
-              islandImageUrl={currentTheme.backgroundImage}
+              islandImageUrl={session.design.customBackgroundUrl || currentTheme.backgroundImage}
               onRestart={handleRestartSession}
               showRestartButton={true}
             />

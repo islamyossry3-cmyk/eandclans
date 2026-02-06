@@ -42,10 +42,12 @@ export function TournamentBuilderPage() {
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState<Step>('basic');
   const [uploadingMusic, setUploadingMusic] = useState(false);
+  const [uploadingBackground, setUploadingBackground] = useState(false);
 
   const csvInputRef = useRef<HTMLInputElement>(null);
   const arabicCsvInputRef = useRef<HTMLInputElement>(null);
   const musicInputRef = useRef<HTMLInputElement>(null);
+  const backgroundInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -134,11 +136,11 @@ export function TournamentBuilderPage() {
       const { supabase } = await import('../../lib/supabase');
       const fileName = `music/${crypto.randomUUID()}-${file.name}`;
       const { data, error: uploadError } = await supabase.storage
-        .from('session-files')
+        .from('game-assets')
         .upload(fileName, file, { cacheControl: '3600', upsert: false });
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage
-        .from('session-files')
+        .from('game-assets')
         .getPublicUrl(data.path);
       setDesign(prev => ({ ...prev, backgroundMusicUrl: publicUrl }));
       toastSuccess('Music uploaded successfully');
@@ -147,6 +149,40 @@ export function TournamentBuilderPage() {
     } finally {
       setUploadingMusic(false);
       if (musicInputRef.current) musicInputRef.current.value = '';
+    }
+  };
+
+  // Background image upload handler
+  const handleBackgroundUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toastError('Please upload an image file (PNG, JPG, or WebP)');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toastError('Image must be less than 10MB');
+      return;
+    }
+    setUploadingBackground(true);
+    try {
+      const { supabase } = await import('../../lib/supabase');
+      const fileName = `backgrounds/${crypto.randomUUID()}-${file.name}`;
+      const { data, error: uploadError } = await supabase.storage
+        .from('game-assets')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from('game-assets')
+        .getPublicUrl(data.path);
+      setDesign(prev => ({ ...prev, customBackgroundUrl: publicUrl }));
+      toastSuccess('Background image uploaded');
+    } catch {
+      toastError('Failed to upload background image');
+    } finally {
+      setUploadingBackground(false);
+      if (backgroundInputRef.current) backgroundInputRef.current.value = '';
     }
   };
 
@@ -647,9 +683,48 @@ export function TournamentBuilderPage() {
                 onClick={() => setDesign({ ...design, backgroundTheme: theme.value })}
               >
                 <span className="text-lg mr-1">{theme.emoji}</span> {theme.label}
+                <span className="block text-xs opacity-60">{theme.group}</span>
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Custom Background Image */}
+        <div className="mb-4">
+          <label className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>
+            Custom Background Image (optional — overrides theme background)
+          </label>
+          {design.customBackgroundUrl ? (
+            <div className="flex items-center gap-4">
+              <div className="w-32 h-20 rounded-lg overflow-hidden border-2" style={{ borderColor: `${eandColors.oceanBlue}30` }}>
+                <img src={design.customBackgroundUrl} alt="Custom background" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm truncate mb-2" style={{ color: eandColors.grey }}>Custom background uploaded</p>
+                <button type="button"
+                  className="text-sm px-3 py-1 rounded-lg"
+                  style={{ color: eandColors.red, backgroundColor: `${eandColors.red}10` }}
+                  onClick={() => setDesign(prev => ({ ...prev, customBackgroundUrl: undefined }))}
+                >
+                  <Trash2 className="w-3 h-3 inline mr-1" /> Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <input ref={backgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleBackgroundUpload} />
+              <button type="button"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:scale-105"
+                style={{ backgroundColor: eandColors.lightGrey, color: eandColors.oceanBlue }}
+                onClick={() => backgroundInputRef.current?.click()}
+                disabled={uploadingBackground}
+              >
+                <Upload className="w-4 h-4" />
+                {uploadingBackground ? 'Uploading...' : 'Upload Background Image'}
+              </button>
+              <p className="text-xs mt-1" style={{ color: eandColors.grey }}>PNG, JPG, or WebP — max 10MB</p>
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>

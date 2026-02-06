@@ -22,6 +22,7 @@ export interface TournamentDesign {
   team1: TournamentTeamDesign;
   team2: TournamentTeamDesign;
   backgroundTheme: string;
+  customBackgroundUrl?: string;
   brandingText?: string;
   backgroundMusicUrl?: string;
   pointsPerCorrectAnswer: number;
@@ -457,9 +458,9 @@ export const tournamentService = {
         .select('*')
         .eq('tournament_id', tournamentId)
         .eq('player_name', playerName)
-        .single();
+        .maybeSingle();
 
-      if (error) return null;
+      if (error || !data) return null;
       return this.mapDbToTournamentPlayer(data);
     } catch {
       return null;

@@ -37,6 +37,7 @@ export const sessionService = {
         design_team2_color: data.design?.team2.color || '#47CB6C',
         design_team2_icon: data.design?.team2.icon || '🏯',
         design_background_theme: data.design?.backgroundTheme || 'win-together',
+        design_custom_background_url: data.design?.customBackgroundUrl,
         design_logo_url: data.design?.logoUrl,
         design_branding_text: data.design?.brandingText,
         questions: JSON.stringify(data.questions || []),
@@ -89,6 +90,7 @@ export const sessionService = {
         updateData.design_team2_color = data.design.team2.color;
         updateData.design_team2_icon = data.design.team2.icon;
         updateData.design_background_theme = data.design.backgroundTheme;
+        updateData.design_custom_background_url = data.design.customBackgroundUrl;
         updateData.design_logo_url = data.design.logoUrl;
         updateData.design_branding_text = data.design.brandingText;
       }
@@ -103,14 +105,14 @@ export const sessionService = {
 
       if (data.backgroundMusicUrl !== undefined) {
         updateData.background_music_url = data.backgroundMusicUrl;
+      }
+
       if (data.autoRestart !== undefined) {
         updateData.auto_restart = data.autoRestart;
       }
 
       if (data.restartDelay !== undefined) {
         updateData.restart_delay = data.restartDelay;
-      }
-
       }
 
       const { data: updatedSession, error } = await supabase
@@ -269,6 +271,7 @@ export const sessionService = {
           icon: dbSession.design_team2_icon,
         },
         backgroundTheme: dbSession.design_background_theme,
+        customBackgroundUrl: dbSession.design_custom_background_url,
         logoUrl: dbSession.design_logo_url,
         brandingText: dbSession.design_branding_text,
       },
