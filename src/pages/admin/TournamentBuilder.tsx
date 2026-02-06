@@ -5,6 +5,8 @@ import { tournamentService, defaultTournamentDesign } from '../../services/tourn
 import type { TournamentQuestion, TournamentDesign } from '../../services/tournamentService';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
+import { Modal } from '../../components/shared/Modal';
+import { listAssets, getAssetUrl, ASSET_FOLDERS } from '../../utils/storageSetup';
 import { eandColors } from '../../constants/eandColors';
 import { cairoToUTC, utcToCairoParts } from '../../utils/cairoTime';
 import {
@@ -16,7 +18,7 @@ import { ToastContainer } from '../../components/shared/Toast';
 import {
   Trophy, Calendar, Clock, Users, ArrowLeft, ArrowRight, Save,
   Palette, HelpCircle, Plus, Trash2, Check, FileText,
-  Upload, Download, Music, AlertCircle, Volume2
+  Upload, Download, Music, AlertCircle, Volume2, FolderOpen
 } from 'lucide-react';
 
 type Step = 'basic' | 'schedule' | 'players' | 'design' | 'questions' | 'review';
@@ -48,6 +50,9 @@ export function TournamentBuilderPage() {
   const [uploadingBackground, setUploadingBackground] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [postGameFileUrl, setPostGameFileUrl] = useState<string | undefined>();
+  const [assetPickerOpen, setAssetPickerOpen] = useState<'team1' | 'team2' | null>(null);
+  const [availableAssets, setAvailableAssets] = useState<Array<{ name: string; id: string }>>([]);
+  const [loadingAssets, setLoadingAssets] = useState(false);
 
   const csvInputRef = useRef<HTMLInputElement>(null);
   const arabicCsvInputRef = useRef<HTMLInputElement>(null);
@@ -270,6 +275,29 @@ export function TournamentBuilderPage() {
         ? prev.excludedDays.filter(d => d !== day)
         : [...prev.excludedDays, day],
     }));
+  };
+
+  const openAssetPicker = async (type: 'team1' | 'team2') => {
+    setAssetPickerOpen(type);
+    setLoadingAssets(true);
+    const result = await listAssets(ASSET_FOLDERS.ICONS);
+    if (result.success && result.data) {
+      setAvailableAssets(result.data);
+    } else {
+      toastError('Failed to load assets');
+    }
+    setLoadingAssets(false);
+  };
+
+  const selectAsset = (assetName: string) => {
+    if (!assetPickerOpen) return;
+    const assetUrl = getAssetUrl(`${ASSET_FOLDERS.ICONS}/${assetName}`);
+    setDesign({
+      ...design,
+      [assetPickerOpen]: { ...design[assetPickerOpen], icon: assetUrl },
+    });
+    toastSuccess('Icon selected successfully');
+    setAssetPickerOpen(null);
   };
 
   const steps: Step[] = ['basic', 'schedule', 'players', 'design', 'questions', 'review'];
@@ -720,7 +748,13 @@ export function TournamentBuilderPage() {
         </div>
         <div>
           <label className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>Icon</label>
-          <div className="flex flex-wrap gap-2">
+          {design.team1.icon?.startsWith('http') && (
+            <div className="flex items-center gap-3 mb-3 p-2 rounded-xl" style={{ backgroundColor: `${design.team1.color}10`, border: `2px solid ${design.team1.color}` }}>
+              <img src={design.team1.icon} alt="Team 1 icon" className="w-12 h-12 rounded-lg object-cover" />
+              <span className="text-sm font-medium" style={{ color: design.team1.color }}>Uploaded icon selected</span>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2 mb-3">
             {ICON_OPTIONS.map(icon => (
               <button key={icon} type="button"
                 className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all ${design.team1.icon === icon ? 'ring-2 scale-110' : 'hover:scale-105'}`}
@@ -732,6 +766,9 @@ export function TournamentBuilderPage() {
               >{icon}</button>
             ))}
           </div>
+          <Button variant="secondary" size="sm" onClick={() => openAssetPicker('team1')} className="flex items-center gap-2">
+            <FolderOpen className="w-4 h-4" /> Browse Uploaded Icons
+          </Button>
         </div>
       </div>
 
@@ -761,7 +798,13 @@ export function TournamentBuilderPage() {
         </div>
         <div>
           <label className="block text-sm font-semibold mb-2" style={{ color: eandColors.oceanBlue }}>Icon</label>
-          <div className="flex flex-wrap gap-2">
+          {design.team2.icon?.startsWith('http') && (
+            <div className="flex items-center gap-3 mb-3 p-2 rounded-xl" style={{ backgroundColor: `${design.team2.color}10`, border: `2px solid ${design.team2.color}` }}>
+              <img src={design.team2.icon} alt="Team 2 icon" className="w-12 h-12 rounded-lg object-cover" />
+              <span className="text-sm font-medium" style={{ color: design.team2.color }}>Uploaded icon selected</span>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2 mb-3">
             {ICON_OPTIONS.map(icon => (
               <button key={icon} type="button"
                 className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all ${design.team2.icon === icon ? 'ring-2 scale-110' : 'hover:scale-105'}`}
@@ -773,6 +816,9 @@ export function TournamentBuilderPage() {
               >{icon}</button>
             ))}
           </div>
+          <Button variant="secondary" size="sm" onClick={() => openAssetPicker('team2')} className="flex items-center gap-2">
+            <FolderOpen className="w-4 h-4" /> Browse Uploaded Icons
+          </Button>
         </div>
       </div>
 
@@ -1189,6 +1235,47 @@ export function TournamentBuilderPage() {
   };
 
   return (
+    <>
+    <Modal
+      isOpen={assetPickerOpen !== null}
+      onClose={() => setAssetPickerOpen(null)}
+      title="Select Icon from Assets"
+    >
+      <div className="p-4">
+        {loadingAssets ? (
+          <div className="flex justify-center py-12">
+            <div style={{ color: eandColors.grey }}>Loading assets...</div>
+          </div>
+        ) : availableAssets.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="mb-2" style={{ color: eandColors.grey }}>No icons found in assets</p>
+            <p className="text-sm" style={{ color: eandColors.mediumGrey }}>Upload icons in the Asset Manager first</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+            {availableAssets.map((asset) => {
+              const assetUrl = getAssetUrl(`${ASSET_FOLDERS.ICONS}/${asset.name}`);
+              return (
+                <button
+                  key={asset.id}
+                  onClick={() => selectAsset(asset.name)}
+                  className="aspect-square rounded-2xl border-2 border-gray-200 transition-all overflow-hidden bg-white hover:shadow-lg group"
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = eandColors.red}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e5e7eb'}
+                >
+                  <img
+                    src={assetUrl}
+                    alt={asset.name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                  />
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </Modal>
+
     <div className="min-h-screen p-6" style={{ backgroundColor: eandColors.lightGrey }}>
       <ToastContainer toasts={toasts} onClose={removeToast} />
       <div className="max-w-3xl mx-auto">
@@ -1245,5 +1332,6 @@ export function TournamentBuilderPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
