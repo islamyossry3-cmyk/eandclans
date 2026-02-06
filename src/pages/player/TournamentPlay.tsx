@@ -140,7 +140,12 @@ export function TournamentPlayPage() {
     const gameChannel = gameService.subscribeToGame(
       liveGame.id,
       (updated) => setLiveGame(updated),
-      () => {}
+      () => {},
+      // onReady: refetch game state to catch changes during subscription gap
+      async () => {
+        const freshGame = await gameService.getLiveGame(liveGame.id);
+        if (freshGame) setLiveGame(freshGame);
+      }
     );
     channels.push(gameChannel);
 
@@ -159,13 +164,25 @@ export function TournamentPlayPage() {
         setAllPlayers((prev) => prev.filter((p) => p.id !== deletedId));
         setGamePlayer((prev) => (prev?.id === deletedId ? null : prev));
       },
+    },
+    // onReady: refetch players to catch joins during subscription gap
+    async () => {
+      const freshPlayers = await gameService.getPlayers(liveGame.id);
+      setAllPlayers(freshPlayers);
     });
     channels.push(playersChannel);
 
     const territoriesChannel = gameService.subscribeToTerritories(liveGame.id, setTerritories);
     channels.push(territoriesChannel);
 
+    // Lightweight polling fallback: catch any missed realtime events
+    const pollInterval = setInterval(async () => {
+      const freshGame = await gameService.getLiveGame(liveGame.id);
+      if (freshGame) setLiveGame(freshGame);
+    }, 5000);
+
     return () => {
+      clearInterval(pollInterval);
       channels.forEach(ch => ch.unsubscribe());
     };
   }, [liveGame?.id]);

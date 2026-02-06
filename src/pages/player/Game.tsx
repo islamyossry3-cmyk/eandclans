@@ -142,6 +142,14 @@ export function PlayerGamePage() {
         setTimeout(() => {
           window.location.reload();
         }, 1000);
+      },
+      // onReady: refetch game state to catch changes during subscription gap
+      async () => {
+        const freshGame = await gameService.getLiveGame(liveGameId);
+        if (freshGame) {
+          prevGameStatus.current = freshGame.status;
+          setLiveGame(freshGame);
+        }
       }
     );
     channels.push(gameChannel);
@@ -176,6 +184,11 @@ export function PlayerGamePage() {
           setAvailableTerritories([]);
         }
       },
+    },
+    // onReady: refetch all players to catch joins during subscription gap
+    async () => {
+      const freshPlayers = await gameService.getPlayers(liveGameId);
+      setAllPlayers(freshPlayers);
     });
     channels.push(playersChannel);
 
@@ -184,7 +197,19 @@ export function PlayerGamePage() {
     });
     channels.push(territoriesChannel);
 
+    // Lightweight polling fallback: catch any missed realtime events
+    const pollInterval = setInterval(async () => {
+      const freshGame = await gameService.getLiveGame(liveGameId);
+      if (freshGame) {
+        if (freshGame.status !== prevGameStatus.current) {
+          prevGameStatus.current = freshGame.status;
+        }
+        setLiveGame(freshGame);
+      }
+    }, 5000);
+
     return () => {
+      clearInterval(pollInterval);
       channels.forEach((channel) => channel.unsubscribe());
     };
   }, [liveGameId, playerId, info, success, setPlayerData]);

@@ -43,6 +43,15 @@ export function LiveSessionPage() {
     if (!liveGame || !session) return;
 
     const channels: RealtimeChannel[] = [];
+    let subscribedCount = 0;
+    const totalChannels = 4;
+
+    const markSubscribed = () => {
+      subscribedCount++;
+      if (subscribedCount >= totalChannels) {
+        setRealtimeConnected(true);
+      }
+    };
 
     const sessionChannel = sessionService.subscribeToSession(session.id, (updatedSession) => {
       setSession(updatedSession);
@@ -67,6 +76,12 @@ export function LiveSessionPage() {
         setTimeout(() => {
           window.location.reload();
         }, 1000);
+      },
+      // onReady: refetch game state to catch any changes during subscription gap
+      async () => {
+        markSubscribed();
+        const freshGame = await gameService.getLiveGame(liveGame.id);
+        if (freshGame) setLiveGame(freshGame);
       }
     );
     channels.push(gameChannel);
@@ -76,9 +91,8 @@ export function LiveSessionPage() {
       {
         onInsert: (newPlayer) => {
           setPlayers(prev => {
-            const next = [...prev, newPlayer];
-            // Sort by joined_at to maintain order if needed, or just append
-            return next;
+            if (prev.some(p => p.id === newPlayer.id)) return prev;
+            return [...prev, newPlayer];
           });
           info(`${newPlayer.playerName} joined the game`);
         },
@@ -88,19 +102,16 @@ export function LiveSessionPage() {
         onDelete: (deletedId) => {
           setPlayers(prev => prev.filter(p => p.id !== deletedId));
         }
+      },
+      // onReady: refetch all players to catch any joins during subscription gap
+      async () => {
+        markSubscribed();
+        const freshPlayers = await gameService.getPlayers(liveGame.id);
+        setPlayers(freshPlayers);
       }
     );
     channels.push(playersChannel);
 
-    // Track realtime connection status
-    const checkConnection = () => {
-      const allSubscribed = channels.every(ch => ch.state === 'joined');
-      setRealtimeConnected(allSubscribed);
-    };
-    
-    // Check connection status after a short delay
-    const connectionTimer = setTimeout(checkConnection, 2000);
-    
     const territoriesChannel = gameService.subscribeToTerritories(liveGame.id, (updatedTerritories) => {
       if (prevTerritoryCount.current > 0 && updatedTerritories.length > prevTerritoryCount.current) {
         const newTerritory = updatedTerritories[updatedTerritories.length - 1];
@@ -112,8 +123,18 @@ export function LiveSessionPage() {
     });
     channels.push(territoriesChannel);
 
+    // Lightweight polling fallback: catch any missed realtime events
+    const pollInterval = setInterval(async () => {
+      const [freshGame, freshPlayers] = await Promise.all([
+        gameService.getLiveGame(liveGame.id),
+        gameService.getPlayers(liveGame.id),
+      ]);
+      if (freshGame) setLiveGame(freshGame);
+      setPlayers(freshPlayers);
+    }, 5000);
+
     return () => {
-      clearTimeout(connectionTimer);
+      clearInterval(pollInterval);
       channels.forEach((channel) => channel.unsubscribe());
       setRealtimeConnected(false);
     };

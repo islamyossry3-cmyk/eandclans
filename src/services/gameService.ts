@@ -439,7 +439,8 @@ export const gameService = {
   subscribeToGame(
     gameId: string,
     onUpdate: (game: LiveGame) => void,
-    onDelete?: () => void
+    onDelete?: () => void,
+    onReady?: () => void
   ): RealtimeChannel {
     const channel = supabase
       .channel(`game:${gameId}`)
@@ -459,7 +460,11 @@ export const gameService = {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED' && onReady) {
+          onReady();
+        }
+      });
 
     return channel;
   },
@@ -474,7 +479,8 @@ export const gameService = {
       onInsert?: (player: GamePlayer) => void;
       onUpdate?: (player: GamePlayer) => void;
       onDelete?: (id: string) => void;
-    }
+    },
+    onReady?: () => void
   ): RealtimeChannel {
     const channel = supabase
       .channel(`players:${gameId}`)
@@ -496,7 +502,11 @@ export const gameService = {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED' && onReady) {
+          onReady();
+        }
+      });
 
     return channel;
   },
