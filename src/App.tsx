@@ -105,6 +105,14 @@ function App() {
           }
         />
         <Route
+          path="/tournament/edit/:tournamentId"
+          element={
+            <ProtectedRoute>
+              <TournamentBuilderPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/tournaments/:tournamentId"
           element={
             <ProtectedRoute>

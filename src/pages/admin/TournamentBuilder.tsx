@@ -1,12 +1,12 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { tournamentService, defaultTournamentDesign } from '../../services/tournamentService';
 import type { TournamentQuestion, TournamentDesign } from '../../services/tournamentService';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
 import { eandColors } from '../../constants/eandColors';
-import { cairoToUTC } from '../../utils/cairoTime';
+import { cairoToUTC, utcToCairoParts } from '../../utils/cairoTime';
 import {
   parseTournamentCSV, mergeArabicCSV,
   generateSampleEnglishCSV, generateSampleArabicCSV, downloadCSV,
@@ -36,9 +36,12 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 
 export function TournamentBuilderPage() {
   const navigate = useNavigate();
+  const { tournamentId } = useParams<{ tournamentId: string }>();
+  const isEditMode = Boolean(tournamentId);
   const { user } = useAuthStore();
   const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingTournament, setIsLoadingTournament] = useState(false);
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState<Step>('basic');
   const [uploadingMusic, setUploadingMusic] = useState(false);
@@ -74,6 +77,41 @@ export function TournamentBuilderPage() {
   const [editingQuestion, setEditingQuestion] = useState<TournamentQuestion | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
+
+  // Load existing tournament when in edit mode
+  useEffect(() => {
+    if (!tournamentId) return;
+    setIsLoadingTournament(true);
+    tournamentService.getTournament(tournamentId).then((t) => {
+      if (!t) {
+        toastError('Tournament not found');
+        navigate('/dashboard');
+        return;
+      }
+      const startParts = utcToCairoParts(t.startDate);
+      const endParts = utcToCairoParts(t.endDate);
+      setFormData({
+        name: t.name,
+        description: t.description || '',
+        startDate: startParts.date,
+        startTime: startParts.time,
+        endDate: endParts.date,
+        endTime: endParts.time,
+        sessionDuration: Math.round(t.sessionDurationSeconds / 60),
+        breakDuration: Math.round(t.breakDurationSeconds / 60),
+        maxPlayersPerSession: t.maxPlayersPerSession,
+        maxPlayersPerTeam: t.maxPlayersPerTeam,
+        activeHoursStart: t.activeHoursStart || '09:00',
+        activeHoursEnd: t.activeHoursEnd || '17:00',
+        useActiveHours: Boolean(t.activeHoursStart),
+        excludedDays: t.excludedDays || [],
+      });
+      setDesign(t.design || { ...defaultTournamentDesign });
+      setQuestions(t.questions || []);
+      setPostGameFileUrl(t.postGameFileUrl);
+      setIsLoadingTournament(false);
+    });
+  }, [tournamentId]);
 
   // CSV handlers
   const handleEnglishCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -347,30 +385,62 @@ export function TournamentBuilderPage() {
 
     setIsLoading(true);
 
-    const tournament = await tournamentService.createTournament({
-      adminId: user.adminId,
-      name: formData.name.trim(),
-      description: formData.description.trim() || undefined,
-      startDate: startDateUTC,
-      endDate: endDateUTC,
-      sessionDurationSeconds: formData.sessionDuration * 60,
-      breakDurationSeconds: formData.breakDuration * 60,
-      maxPlayersPerSession: formData.maxPlayersPerSession,
-      maxPlayersPerTeam: formData.maxPlayersPerTeam,
+    const config: Record<string, unknown> = {
       activeHoursStart: formData.useActiveHours ? formData.activeHoursStart : undefined,
       activeHoursEnd: formData.useActiveHours ? formData.activeHoursEnd : undefined,
-      excludedDays: formData.excludedDays.length > 0 ? formData.excludedDays : undefined,
-      questions,
-      design,
-      postGameFileUrl,
-    });
+      excludedDays: formData.excludedDays.length > 0 ? formData.excludedDays : [],
+    };
 
-    setIsLoading(false);
+    if (isEditMode && tournamentId) {
+      const ok = await tournamentService.updateTournament(tournamentId, {
+        name: formData.name.trim(),
+        description: formData.description.trim() || '',
+        startDate: startDateUTC,
+        endDate: endDateUTC,
+        sessionDurationSeconds: formData.sessionDuration * 60,
+        breakDurationSeconds: formData.breakDuration * 60,
+        maxPlayersPerSession: formData.maxPlayersPerSession,
+        maxPlayersPerTeam: formData.maxPlayersPerTeam,
+        questions,
+        design,
+        config,
+        postGameFileUrl: postGameFileUrl || '',
+      });
 
-    if (tournament) {
-      navigate(`/admin/tournaments/${tournament.id}`);
+      setIsLoading(false);
+
+      if (ok) {
+        toastSuccess('Tournament updated successfully');
+        navigate(`/admin/tournaments/${tournamentId}`);
+      } else {
+        setError('Failed to update tournament. Please try again.');
+      }
     } else {
-      setError('Failed to create tournament. Please try again.');
+      const tournament = await tournamentService.createTournament({
+        adminId: user.adminId,
+        name: formData.name.trim(),
+        description: formData.description.trim() || undefined,
+        startDate: startDateUTC,
+        endDate: endDateUTC,
+        sessionDurationSeconds: formData.sessionDuration * 60,
+        breakDurationSeconds: formData.breakDuration * 60,
+        maxPlayersPerSession: formData.maxPlayersPerSession,
+        maxPlayersPerTeam: formData.maxPlayersPerTeam,
+        activeHoursStart: formData.useActiveHours ? formData.activeHoursStart : undefined,
+        activeHoursEnd: formData.useActiveHours ? formData.activeHoursEnd : undefined,
+        excludedDays: formData.excludedDays.length > 0 ? formData.excludedDays : undefined,
+        questions,
+        design,
+        postGameFileUrl,
+      });
+
+      setIsLoading(false);
+
+      if (tournament) {
+        navigate(`/admin/tournaments/${tournament.id}`);
+      } else {
+        setError('Failed to create tournament. Please try again.');
+      }
     }
   };
 
@@ -1128,16 +1198,26 @@ export function TournamentBuilderPage() {
             <ArrowLeft className="w-6 h-6" style={{ color: eandColors.oceanBlue }} />
           </button>
           <div>
-            <h1 className="text-3xl font-bold" style={{ color: eandColors.oceanBlue }}>Create Tournament</h1>
-            <p style={{ color: eandColors.grey }}>Multi-day auto-cycling battle tournament</p>
+            <h1 className="text-3xl font-bold" style={{ color: eandColors.oceanBlue }}>{isEditMode ? 'Edit Tournament' : 'Create Tournament'}</h1>
+            <p style={{ color: eandColors.grey }}>{isEditMode ? 'Update tournament settings' : 'Multi-day auto-cycling battle tournament'}</p>
           </div>
         </div>
 
         {/* Step Indicator */}
         {renderStepIndicator()}
 
+        {/* Loading state for edit mode */}
+        {isLoadingTournament && (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="w-10 h-10 border-4 rounded-full animate-spin mx-auto mb-3" style={{ borderColor: `${eandColors.oceanBlue}20`, borderTopColor: eandColors.oceanBlue }} />
+              <p className="text-sm font-medium" style={{ color: eandColors.grey }}>Loading tournament...</p>
+            </div>
+          </div>
+        )}
+
         {/* Step Content */}
-        {currentStep === 'basic' && renderBasicStep()}
+        {!isLoadingTournament && currentStep === 'basic' && renderBasicStep()}
         {currentStep === 'schedule' && renderScheduleStep()}
         {currentStep === 'players' && renderPlayersStep()}
         {currentStep === 'design' && renderDesignStep()}
@@ -1155,7 +1235,7 @@ export function TournamentBuilderPage() {
           {currentStep === 'review' ? (
             <Button size="lg" className="flex items-center gap-2" onClick={handleSubmit} disabled={isLoading}>
               <Save className="w-5 h-5" />
-              {isLoading ? 'Creating...' : 'Create Tournament'}
+              {isLoading ? (isEditMode ? 'Saving...' : 'Creating...') : (isEditMode ? 'Save Changes' : 'Create Tournament')}
             </Button>
           ) : (
             <Button size="lg" variant="secondary" className="flex items-center gap-2" onClick={handleNext}>

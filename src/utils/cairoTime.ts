@@ -61,6 +61,29 @@ export function cairoToUTC(dateStr: string, timeStr: string): string {
 }
 
 /**
+ * Convert a UTC ISO string to Cairo date (YYYY-MM-DD) and time (HH:MM) parts.
+ * Useful for pre-populating form fields from stored UTC dates.
+ */
+export function utcToCairoParts(utcIso: string): { date: string; time: string } {
+  const d = new Date(utcIso);
+  // Format in Cairo timezone
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: CAIRO_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+
+  const get = (type: string) => parts.find(p => p.type === type)?.value || '';
+  const date = `${get('year')}-${get('month')}-${get('day')}`;
+  const time = `${get('hour')}:${get('minute')}`;
+  return { date, time };
+}
+
+/**
  * Get current time in Cairo as a formatted string
  */
 export function getCairoNow(): string {

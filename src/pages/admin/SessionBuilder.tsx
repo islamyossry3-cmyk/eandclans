@@ -123,6 +123,7 @@ export function SessionBuilderPage() {
         { id: 'D', text: '' },
       ],
       correctAnswer: 'A',
+      part: getNextPartNumber(),
     };
     setFormData({
       ...formData,
@@ -139,6 +140,17 @@ export function SessionBuilderPage() {
   const deleteQuestion = (index: number) => {
     const questions = [...(formData.questions || [])];
     questions.splice(index, 1);
+    setFormData({ ...formData, questions });
+  };
+
+  const getNextPartNumber = (): number => {
+    const existing = formData.questions || [];
+    const maxPart = existing.reduce((max, q) => Math.max(max, q.part || 0), 0);
+    return maxPart + 1;
+  };
+
+  const deletePart = (partNumber: number) => {
+    const questions = (formData.questions || []).filter(q => q.part !== partNumber);
     setFormData({ ...formData, questions });
   };
 
@@ -300,23 +312,27 @@ export function SessionBuilderPage() {
       console.log('CSV parse result:', result);
 
       if (result.success && result.questions && result.questions.length > 0) {
+        const partNum = getNextPartNumber();
+        const taggedQuestions = result.questions.map(q => ({ ...q, part: partNum }));
         const previousCount = formData.questions?.length || 0;
         setFormData({
           ...formData,
-          questions: [...(formData.questions || []), ...result.questions],
+          questions: [...(formData.questions || []), ...taggedQuestions],
         });
-        success(`Successfully imported ${result.questions.length} questions (Total: ${previousCount + result.questions.length})`);
+        success(`Successfully imported ${result.questions.length} questions as Part ${partNum} (Total: ${previousCount + result.questions.length})`);
         console.log('Questions added to form data');
       } else if (result.errors && result.errors.length > 0) {
         error(`Import failed: ${result.errors[0]}`);
         console.error('CSV Parse Errors:', result.errors);
       } else if (result.questions && result.questions.length > 0) {
+        const partNum = getNextPartNumber();
+        const taggedQuestions = result.questions.map(q => ({ ...q, part: partNum }));
         const previousCount = formData.questions?.length || 0;
         setFormData({
           ...formData,
-          questions: [...(formData.questions || []), ...result.questions],
+          questions: [...(formData.questions || []), ...taggedQuestions],
         });
-        addToast(`Imported ${result.questions.length} questions with some warnings (Total: ${previousCount + result.questions.length})`, 'warning');
+        addToast(`Imported ${result.questions.length} questions as Part ${partNum} with some warnings (Total: ${previousCount + result.questions.length})`, 'warning');
         if (result.errors) {
           console.warn('CSV Parse Warnings:', result.errors);
         }
@@ -1148,63 +1164,93 @@ export function SessionBuilderPage() {
                   </Button>
                 </div>
               </div>
-            ) : (
-              <div className="space-y-4 max-h-96 overflow-y-auto">
-                {formData.questions?.map((question, index) => (
-                  <div key={question.id} className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <h4 className="font-semibold text-gray-900">Question {index + 1}</h4>
-                      <button
-                        onClick={() => deleteQuestion(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <Input
-                      label="Question"
-                      value={question.text}
-                      onChange={(e) => updateQuestion(index, { text: e.target.value })}
-                      placeholder="Enter your question"
-                      className="mb-3"
-                    />
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      {question.options.map((option) => (
-                        <Input
-                          key={option.id}
-                          label={`Option ${option.id}`}
-                          value={option.text}
-                          onChange={(e) => {
-                            const newOptions = question.options.map((opt) =>
-                              opt.id === option.id ? { ...opt, text: e.target.value } : opt
-                            );
-                            updateQuestion(index, { options: newOptions });
-                          }}
-                          placeholder={`Option ${option.id}`}
-                        />
-                      ))}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Correct Answer
-                      </label>
-                      <select
-                        value={question.correctAnswer}
-                        onChange={(e) => updateQuestion(index, { correctAnswer: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2"
-                        style={{ '--tw-ring-color': eandColors.red } as React.CSSProperties}
-                      >
-                        {question.options.map((opt) => (
-                          <option key={opt.id} value={opt.id}>
-                            {opt.id}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            ) : (() => {
+              const allQuestions = formData.questions || [];
+              const partNumbers = [...new Set(allQuestions.map(q => q.part || 0))].sort((a, b) => a - b);
+
+              return (
+                <div className="space-y-6 max-h-[600px] overflow-y-auto">
+                  {partNumbers.map((partNum) => {
+                    const partQuestions = allQuestions
+                      .map((q, idx) => ({ question: q, globalIndex: idx }))
+                      .filter(({ question }) => (question.part || 0) === partNum);
+
+                    return (
+                      <div key={partNum} className="border border-gray-300 rounded-2xl overflow-hidden">
+                        <div className="flex justify-between items-center px-4 py-3" style={{ backgroundColor: `${eandColors.red}10` }}>
+                          <h4 className="font-bold text-gray-900">
+                            {partNum === 0 ? 'Unassigned Questions' : `Part ${partNum}`}
+                            <span className="ml-2 text-sm font-normal text-gray-500">({partQuestions.length} questions)</span>
+                          </h4>
+                          <button
+                            onClick={() => deletePart(partNum)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete Part
+                          </button>
+                        </div>
+                        <div className="space-y-3 p-4">
+                          {partQuestions.map(({ question, globalIndex }, localIdx) => (
+                            <div key={question.id} className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                              <div className="flex justify-between items-start mb-3">
+                                <h4 className="font-semibold text-gray-900">Question {localIdx + 1}</h4>
+                                <button
+                                  onClick={() => deleteQuestion(globalIndex)}
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <Input
+                                label="Question"
+                                value={question.text}
+                                onChange={(e) => updateQuestion(globalIndex, { text: e.target.value })}
+                                placeholder="Enter your question"
+                                className="mb-3"
+                              />
+                              <div className="grid grid-cols-2 gap-2 mb-3">
+                                {question.options.map((option) => (
+                                  <Input
+                                    key={option.id}
+                                    label={`Option ${option.id}`}
+                                    value={option.text}
+                                    onChange={(e) => {
+                                      const newOptions = question.options.map((opt) =>
+                                        opt.id === option.id ? { ...opt, text: e.target.value } : opt
+                                      );
+                                      updateQuestion(globalIndex, { options: newOptions });
+                                    }}
+                                    placeholder={`Option ${option.id}`}
+                                  />
+                                ))}
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Correct Answer
+                                </label>
+                                <select
+                                  value={question.correctAnswer}
+                                  onChange={(e) => updateQuestion(globalIndex, { correctAnswer: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2"
+                                  style={{ '--tw-ring-color': eandColors.red } as React.CSSProperties}
+                                >
+                                  {question.options.map((opt) => (
+                                    <option key={opt.id} value={opt.id}>
+                                      {opt.id}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         );
 

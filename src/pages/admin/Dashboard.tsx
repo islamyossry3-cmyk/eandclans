@@ -6,7 +6,7 @@ import { Button } from '../../components/shared/Button';
 import { SessionCard } from '../../components/admin/SessionCard';
 import { HelpModal } from '../../components/shared/HelpModal';
 import { Loading } from '../../components/shared/Loading';
-import { LogOut, Plus, Search, Zap, HelpCircle, FolderOpen, Shield, Trophy, Users, Calendar, ChevronRight, Gamepad2, Menu, X, Pencil, Play } from 'lucide-react';
+import { LogOut, Plus, Search, Zap, HelpCircle, FolderOpen, Shield, Trophy, Users, Calendar, ChevronRight, Gamepad2, Menu, X, Pencil, Play, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Session } from '../../types/session';
 import { eandColors } from '../../constants/eandColors';
@@ -23,6 +23,7 @@ export function DashboardPage() {
   const [tournamentsLoading, setTournamentsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'sessions' | 'tournaments'>('sessions');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [deletingTournamentId, setDeletingTournamentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -79,6 +80,14 @@ export function DashboardPage() {
 
   const handleCreateNew = () => {
     navigate('/session/new');
+  };
+
+  const handleDeleteTournament = async (id: string) => {
+    const ok = await tournamentService.deleteTournament(id);
+    if (ok) {
+      setTournaments(prev => prev.filter(t => t.id !== id));
+    }
+    setDeletingTournamentId(null);
   };
 
   const filteredSessions = sessions.filter((session: Session) => {
@@ -314,40 +323,100 @@ export function DashboardPage() {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.04 }}
-                    className="game-card cursor-pointer group"
-                    onClick={() => navigate(`/admin/tournaments/${tournament.id}`)}
+                    className="game-card group relative"
                   >
-                    <div className="p-4 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.mauve} 100%)` }}>
-                      <div className="absolute inset-0 game-grid-bg opacity-10" />
-                      <div className="flex items-center justify-between relative z-10">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Trophy className="w-5 h-5 text-white flex-shrink-0" />
-                          <h3 className="font-bold text-white truncate">{tournament.name}</h3>
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/admin/tournaments/${tournament.id}`)}
+                    >
+                      <div className="p-4 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${eandColors.oceanBlue} 0%, ${eandColors.mauve} 100%)` }}>
+                        <div className="absolute inset-0 game-grid-bg opacity-10" />
+                        <div className="flex items-center justify-between relative z-10">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Trophy className="w-5 h-5 text-white flex-shrink-0" />
+                            <h3 className="font-bold text-white truncate">{tournament.name}</h3>
+                          </div>
+                          <span className="game-badge flex-shrink-0 ml-2" style={{
+                            backgroundColor: tournament.status === 'active' ? eandColors.brightGreen : tournament.status === 'completed' ? eandColors.oceanBlue : eandColors.grey,
+                            color: 'white'
+                          }}>
+                            {tournament.status}
+                          </span>
                         </div>
-                        <span className="game-badge flex-shrink-0 ml-2" style={{
-                          backgroundColor: tournament.status === 'active' ? eandColors.brightGreen : tournament.status === 'completed' ? eandColors.oceanBlue : eandColors.grey,
-                          color: 'white'
-                        }}>
-                          {tournament.status}
-                        </span>
+                      </div>
+                      <div className="p-4">
+                        <div className="flex items-center gap-4 text-sm mb-3">
+                          <div className="flex items-center gap-1" style={{ color: eandColors.grey }}>
+                            <Users className="w-4 h-4" /> <span>{tournament.maxPlayersPerSession} max</span>
+                          </div>
+                          <div className="flex items-center gap-1" style={{ color: eandColors.grey }}>
+                            <Calendar className="w-4 h-4" /> <span>{new Date(tournament.startDate).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        {tournament.description && (
+                          <p className="text-sm mb-3 line-clamp-2" style={{ color: eandColors.grey }}>{tournament.description}</p>
+                        )}
                       </div>
                     </div>
-                    <div className="p-4">
-                      <div className="flex items-center gap-4 text-sm mb-3">
-                        <div className="flex items-center gap-1" style={{ color: eandColors.grey }}>
-                          <Users className="w-4 h-4" /> <span>{tournament.maxPlayersPerSession} max</span>
-                        </div>
-                        <div className="flex items-center gap-1" style={{ color: eandColors.grey }}>
-                          <Calendar className="w-4 h-4" /> <span>{new Date(tournament.startDate).toLocaleDateString()}</span>
-                        </div>
+                    {/* Action Buttons */}
+                    <div className="px-4 pb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/tournament/edit/${tournament.id}`); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+                          style={{ backgroundColor: `${eandColors.oceanBlue}10`, color: eandColors.oceanBlue }}
+                        >
+                          <Pencil className="w-3.5 h-3.5" /> Edit
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeletingTournamentId(tournament.id); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+                          style={{ backgroundColor: `${eandColors.red}10`, color: eandColors.red }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </button>
                       </div>
-                      {tournament.description && (
-                        <p className="text-sm mb-3 line-clamp-2" style={{ color: eandColors.grey }}>{tournament.description}</p>
+                      <div className="flex items-center gap-1 text-sm font-medium group-hover:gap-2 transition-all cursor-pointer" style={{ color: eandColors.red }}
+                        onClick={() => navigate(`/admin/tournaments/${tournament.id}`)}
+                      >
+                        View <ChevronRight className="w-4 h-4" />
+                      </div>
+                    </div>
+
+                    {/* Delete Confirmation Overlay */}
+                    <AnimatePresence>
+                      {deletingTournamentId === tournament.id && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl"
+                          style={{ backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                        >
+                          <div className="text-center p-6">
+                            <Trash2 className="w-10 h-10 mx-auto mb-3 text-red-400" />
+                            <p className="text-white font-bold mb-1">Delete Tournament?</p>
+                            <p className="text-white/70 text-sm mb-4">"{tournament.name}" and all its data will be permanently removed.</p>
+                            <div className="flex gap-3 justify-center">
+                              <button
+                                onClick={() => setDeletingTournamentId(null)}
+                                className="px-4 py-2 rounded-xl text-sm font-semibold bg-white/20 text-white hover:bg-white/30 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTournament(tournament.id)}
+                                className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-colors"
+                                style={{ backgroundColor: eandColors.red }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
                       )}
-                      <div className="flex items-center justify-end gap-1 text-sm font-medium group-hover:gap-2 transition-all" style={{ color: eandColors.red }}>
-                        View Details <ChevronRight className="w-4 h-4" />
-                      </div>
-                    </div>
+                    </AnimatePresence>
                   </motion.div>
                 ))}
               </div>

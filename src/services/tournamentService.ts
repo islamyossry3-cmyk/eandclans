@@ -218,9 +218,16 @@ export const tournamentService = {
     name: string;
     description: string;
     status: 'scheduled' | 'active' | 'paused' | 'completed';
+    startDate: string;
+    endDate: string;
+    sessionDurationSeconds: number;
+    breakDurationSeconds: number;
+    maxPlayersPerSession: number;
+    maxPlayersPerTeam: number;
     questions: TournamentQuestion[];
     design: TournamentDesign;
     config: Record<string, unknown>;
+    postGameFileUrl: string;
   }>): Promise<boolean> {
     try {
       const dbUpdates: Record<string, unknown> = {
@@ -230,9 +237,16 @@ export const tournamentService = {
       if (updates.name) dbUpdates.name = updates.name;
       if (updates.description !== undefined) dbUpdates.description = updates.description;
       if (updates.status) dbUpdates.status = updates.status;
+      if (updates.startDate) dbUpdates.start_date = updates.startDate;
+      if (updates.endDate) dbUpdates.end_date = updates.endDate;
+      if (updates.sessionDurationSeconds !== undefined) dbUpdates.session_duration_seconds = updates.sessionDurationSeconds;
+      if (updates.breakDurationSeconds !== undefined) dbUpdates.break_duration_seconds = updates.breakDurationSeconds;
+      if (updates.maxPlayersPerSession !== undefined) dbUpdates.max_players_per_session = updates.maxPlayersPerSession;
+      if (updates.maxPlayersPerTeam !== undefined) dbUpdates.max_players_per_team = updates.maxPlayersPerTeam;
       if (updates.questions) dbUpdates.questions = updates.questions;
       if (updates.design) dbUpdates.design = updates.design;
       if (updates.config) dbUpdates.config = updates.config;
+      if (updates.postGameFileUrl !== undefined) dbUpdates.post_game_file_url = updates.postGameFileUrl;
 
       const { error } = await supabase
         .from('tournaments')

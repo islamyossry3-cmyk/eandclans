@@ -10,6 +10,7 @@ export interface Question {
   points?: number;
   category?: string;
   difficulty?: 'easy' | 'medium' | 'hard';
+  part?: number;
 }
 
 export interface SessionConfig {
