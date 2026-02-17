@@ -16,10 +16,19 @@ function isWithinSchedulingWindow(tournament: Tournament): boolean {
   const cairoHour = cairoTime.getUTCHours();
   const cairoMinute = cairoTime.getUTCMinutes();
 
-  // Check excluded days
+  // Check excluded days (day-of-week)
   const excludedDays = tournament.excludedDays || (tournament.config?.excludedDays as number[]) || [];
   if (excludedDays.length > 0 && excludedDays.includes(cairoDay)) {
     return false;
+  }
+
+  // Check excluded dates (specific YYYY-MM-DD dates)
+  const excludedDates = tournament.excludedDates || (tournament.config?.excludedDates as string[]) || [];
+  if (excludedDates.length > 0) {
+    const cairoDateStr = `${cairoTime.getUTCFullYear()}-${String(cairoTime.getUTCMonth() + 1).padStart(2, '0')}-${String(cairoTime.getUTCDate()).padStart(2, '0')}`;
+    if (excludedDates.includes(cairoDateStr)) {
+      return false;
+    }
   }
 
   // Check active hours

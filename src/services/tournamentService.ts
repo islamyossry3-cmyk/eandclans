@@ -72,6 +72,7 @@ export interface Tournament {
   activeHoursStart?: string;
   activeHoursEnd?: string;
   excludedDays?: number[];
+  excludedDates?: string[];
   status: 'scheduled' | 'active' | 'paused' | 'completed';
   questionBankId?: string;
   questions: TournamentQuestion[];
@@ -127,6 +128,7 @@ export const tournamentService = {
     activeHoursStart?: string;
     activeHoursEnd?: string;
     excludedDays?: number[];
+    excludedDates?: string[];
     questionBankId?: string;
     questions?: TournamentQuestion[];
     design?: TournamentDesign;
@@ -139,6 +141,7 @@ export const tournamentService = {
         activeHoursStart: data.activeHoursStart,
         activeHoursEnd: data.activeHoursEnd,
         excludedDays: data.excludedDays || [],
+        excludedDates: data.excludedDates || [],
       };
       const { data: tournament, error } = await supabase
         .from('tournaments')
@@ -723,6 +726,7 @@ export const tournamentService = {
       activeHoursStart: config.activeHoursStart as string | undefined,
       activeHoursEnd: config.activeHoursEnd as string | undefined,
       excludedDays: (config.excludedDays as number[] | undefined) || [],
+      excludedDates: (config.excludedDates as string[] | undefined) || [],
       status: data.status as Tournament['status'],
       questionBankId: data.question_bank_id as string | undefined,
       questions: (data.questions as TournamentQuestion[]) || [],

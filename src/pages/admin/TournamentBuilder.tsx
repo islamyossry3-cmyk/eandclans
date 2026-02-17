@@ -36,6 +36,24 @@ const ICON_OPTIONS = ['🔴', '🔵', '🟢', '🟡', '🟣', '🏰', '🏯', '�
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+/**
+ * Returns all Fridays and Saturdays during Ramadan 2026 (approx Feb 18 – Mar 19).
+ */
+function getRamadan2026Weekends(): string[] {
+  const start = new Date('2026-02-18');
+  const end = new Date('2026-03-19');
+  const dates: string[] = [];
+  const d = new Date(start);
+  while (d <= end) {
+    const day = d.getDay(); // 0=Sun..6=Sat
+    if (day === 5 || day === 6) { // Friday or Saturday
+      dates.push(d.toISOString().split('T')[0]);
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return dates;
+}
+
 export function TournamentBuilderPage() {
   const navigate = useNavigate();
   const { tournamentId } = useParams<{ tournamentId: string }>();
@@ -75,6 +93,7 @@ export function TournamentBuilderPage() {
     activeHoursEnd: '17:00',
     useActiveHours: false,
     excludedDays: [] as number[],
+    excludedDates: [] as string[],
   });
 
   const [design, setDesign] = useState<TournamentDesign>({ ...defaultTournamentDesign });
@@ -110,6 +129,7 @@ export function TournamentBuilderPage() {
         activeHoursEnd: t.activeHoursEnd || '17:00',
         useActiveHours: Boolean(t.activeHoursStart),
         excludedDays: t.excludedDays || [],
+        excludedDates: t.excludedDates || [],
       });
       setDesign(t.design || { ...defaultTournamentDesign });
       setQuestions(t.questions || []);
@@ -417,6 +437,7 @@ export function TournamentBuilderPage() {
       activeHoursStart: formData.useActiveHours ? formData.activeHoursStart : undefined,
       activeHoursEnd: formData.useActiveHours ? formData.activeHoursEnd : undefined,
       excludedDays: formData.excludedDays.length > 0 ? formData.excludedDays : [],
+      excludedDates: formData.excludedDates.length > 0 ? formData.excludedDates : [],
     };
 
     if (isEditMode && tournamentId) {
@@ -457,6 +478,7 @@ export function TournamentBuilderPage() {
         activeHoursStart: formData.useActiveHours ? formData.activeHoursStart : undefined,
         activeHoursEnd: formData.useActiveHours ? formData.activeHoursEnd : undefined,
         excludedDays: formData.excludedDays.length > 0 ? formData.excludedDays : undefined,
+        excludedDates: formData.excludedDates.length > 0 ? formData.excludedDates : undefined,
         questions,
         design,
         postGameFileUrl,
@@ -686,6 +708,88 @@ export function TournamentBuilderPage() {
           <p className="text-xs mt-3" style={{ color: eandColors.grey }}>
             No sessions will run on: {formData.excludedDays.map(d => DAY_NAMES[d]).join(', ')}
           </p>
+        )}
+      </div>
+
+      {/* Excluded Specific Dates */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${eandColors.mauve}15` }}>
+            <Calendar className="w-5 h-5" style={{ color: eandColors.mauve }} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold" style={{ color: eandColors.oceanBlue }}>Excluded Dates</h2>
+            <p className="text-xs" style={{ color: eandColors.grey }}>Skip sessions on specific dates</p>
+          </div>
+        </div>
+
+        {/* Quick Ramadan button */}
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => {
+              const ramadanDates = getRamadan2026Weekends();
+              setFormData(prev => ({
+                ...prev,
+                excludedDates: [...new Set([...prev.excludedDates, ...ramadanDates])].sort(),
+              }));
+              toastSuccess('Ramadan 2026 Fri & Sat dates added');
+            }}
+            className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:scale-105 flex items-center gap-2"
+            style={{ backgroundColor: `${eandColors.mauve}15`, color: eandColors.mauve, border: `2px solid ${eandColors.mauve}30` }}
+          >
+            🌙 Exclude Ramadan Fri & Sat (Feb 18 – Mar 19)
+          </button>
+        </div>
+
+        {/* Manual date picker */}
+        <div className="flex items-center gap-2 mb-4">
+          <Input
+            type="date"
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val && !formData.excludedDates.includes(val)) {
+                setFormData(prev => ({ ...prev, excludedDates: [...prev.excludedDates, val].sort() }));
+              }
+              e.target.value = '';
+            }}
+          />
+          <span className="text-xs whitespace-nowrap" style={{ color: eandColors.grey }}>Add a date</span>
+        </div>
+
+        {/* Display excluded dates */}
+        {formData.excludedDates.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {formData.excludedDates.map(date => (
+              <span
+                key={date}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                style={{ backgroundColor: `${eandColors.mauve}10`, color: eandColors.mauve }}
+              >
+                {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, excludedDates: prev.excludedDates.filter(d => d !== date) }))}
+                  className="ml-0.5 hover:opacity-70"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs" style={{ color: eandColors.grey }}>No specific dates excluded</p>
+        )}
+
+        {formData.excludedDates.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setFormData(prev => ({ ...prev, excludedDates: [] }))}
+            className="text-xs mt-3 underline hover:opacity-70"
+            style={{ color: eandColors.red }}
+          >
+            Clear all excluded dates
+          </button>
         )}
       </div>
     </div>
